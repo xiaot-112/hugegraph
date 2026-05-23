@@ -15,33 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.hugegraph.ct.node;
+package org.apache.hugegraph.ct.env;
 
-public interface BaseNodeWrapper {
+import org.apache.hugegraph.ct.base.ClusterScale;
 
-    void start();
+public class DynamicEnv extends AbstractEnv {
 
-    void stop();
+    public DynamicEnv(int pdCnt, int storeCnt, int serverCnt) {
+        super();
+        super.init(pdCnt, storeCnt, serverCnt);
+    }
 
-    boolean isAlive();
+    public static DynamicEnv fromAnnotation(Class<?> testClass) {
+        ClusterScale scale = testClass.getAnnotation(ClusterScale.class);
+        if (scale != null) {
+            return new DynamicEnv(scale.pd(), scale.store(), scale.server());
+        }
+        return new DynamicEnv(1, 1, 1);
+    }
 
-    String getID();
-
-    String getNodePath();
-
-    String getLogPath();
-
-    void updateWorkPath(String workPath);
-
-    void updateConfigPath(String ConfigPath);
-
-    boolean isStarted();
-
-    boolean waitForReady(long timeoutMs);
-
-    HealthChecker getHealthChecker();
-
-    void bindHealthChecker(HealthChecker healthChecker);
-
-    int getIndex();
+    @Override
+    public void init() {
+        super.init(1, 1, 1);
+    }
 }

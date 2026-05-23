@@ -39,6 +39,8 @@ public interface BaseEnv {
 
     List<String> getStoreRestAddrs();
 
+    List<String> getStoreGrpcAddrs();
+
     List<String> getServerRestAddrs();
 
     List<String> getPDNodeDir();
@@ -46,4 +48,22 @@ public interface BaseEnv {
     List<String> getStoreNodeDir();
 
     List<String> getServerNodeDir();
+
+    int addPDNode();
+
+    int addStoreNode();
+
+    int addServerNode();
+
+    void removePDNode(int index);
+
+    void removeStoreNode(int index);
+
+    void removeServerNode(int index);
+
+    int getAlivePDNodeCount();
+
+    int getAliveStoreNodeCount();
+
+    int getAliveServerNodeCount();
 }

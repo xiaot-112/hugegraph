@@ -33,7 +33,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.hugegraph.ct.config.PDConfig;
+
 public class PDNodeWrapper extends AbstractNodeWrapper {
+
+    private PDConfig pdConfig;
 
     public PDNodeWrapper() {
         super();
@@ -89,5 +93,10 @@ public class PDNodeWrapper extends AbstractNodeWrapper {
     @Override
     public String getID() {
         return "PD" + this.index;
+    }
+
+    public void bindConfig(PDConfig config) {
+        this.pdConfig = config;
+        this.bindHealthChecker(new PDHealthChecker(config.getGrpcAddress()));
     }
 }

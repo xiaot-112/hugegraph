@@ -43,4 +43,11 @@ public class EnvFactory {
         return env;
     }
 
+    public static BaseEnv getEnv(int pdCnt, int storeCnt, int serverCnt) {
+        if (pdCnt == 1 && storeCnt == 1 && serverCnt == 1) {
+            return new SimpleEnv();
+        }
+        return new DynamicEnv(pdCnt, storeCnt, serverCnt);
+    }
+
 }

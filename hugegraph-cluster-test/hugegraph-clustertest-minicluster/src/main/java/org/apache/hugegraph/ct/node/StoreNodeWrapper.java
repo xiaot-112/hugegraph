@@ -20,6 +20,7 @@ package org.apache.hugegraph.ct.node;
 import static org.apache.hugegraph.ct.base.ClusterConstant.CONF_DIR;
 import static org.apache.hugegraph.ct.base.ClusterConstant.JAVA_CMD;
 import static org.apache.hugegraph.ct.base.ClusterConstant.LOG4J_FILE;
+import static org.apache.hugegraph.ct.base.ClusterConstant.LOCALHOST;
 import static org.apache.hugegraph.ct.base.ClusterConstant.STORE_JAR_PREFIX;
 import static org.apache.hugegraph.ct.base.ClusterConstant.STORE_LIB_PATH;
 import static org.apache.hugegraph.ct.base.ClusterConstant.STORE_TEMPLATE_PATH;
@@ -32,6 +33,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import org.apache.hugegraph.ct.config.StoreConfig;
 
 public class StoreNodeWrapper extends AbstractNodeWrapper {
 
@@ -90,5 +93,9 @@ public class StoreNodeWrapper extends AbstractNodeWrapper {
     @Override
     public String getID() {
         return "Store" + this.index;
+    }
+
+    public void bindConfig(StoreConfig config) {
+        this.bindHealthChecker(new PortHealthChecker(LOCALHOST, config.getRestPort()));
     }
 }

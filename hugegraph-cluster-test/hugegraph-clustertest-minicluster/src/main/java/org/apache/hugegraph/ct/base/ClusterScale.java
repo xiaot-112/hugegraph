@@ -15,33 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.hugegraph.ct.node;
+package org.apache.hugegraph.ct.base;
 
-public interface BaseNodeWrapper {
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-    void start();
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface ClusterScale {
 
-    void stop();
+    int pd() default 1;
 
-    boolean isAlive();
+    int store() default 1;
 
-    String getID();
+    int server() default 1;
 
-    String getNodePath();
-
-    String getLogPath();
-
-    void updateWorkPath(String workPath);
-
-    void updateConfigPath(String ConfigPath);
-
-    boolean isStarted();
-
-    boolean waitForReady(long timeoutMs);
-
-    HealthChecker getHealthChecker();
-
-    void bindHealthChecker(HealthChecker healthChecker);
-
-    int getIndex();
+    long startTimeoutMs() default ClusterConstant.CLUSTER_START_TIMEOUT_MS;
 }

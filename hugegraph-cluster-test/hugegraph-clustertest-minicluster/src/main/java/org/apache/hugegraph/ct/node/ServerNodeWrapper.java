@@ -25,6 +25,7 @@ import static org.apache.hugegraph.ct.base.ClusterConstant.GREMLIN_DRIVER_SETTIN
 import static org.apache.hugegraph.ct.base.ClusterConstant.GREMLIN_SERVER_FILE;
 import static org.apache.hugegraph.ct.base.ClusterConstant.JAVA_CMD;
 import static org.apache.hugegraph.ct.base.ClusterConstant.LIB_DIR;
+import static org.apache.hugegraph.ct.base.ClusterConstant.LOCALHOST;
 import static org.apache.hugegraph.ct.base.ClusterConstant.LOG4J_FILE;
 import static org.apache.hugegraph.ct.base.ClusterConstant.PLUGINS_DIR;
 import static org.apache.hugegraph.ct.base.ClusterConstant.REMOTE_OBJECTS_SETTING_FILE;
@@ -45,6 +46,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
+import org.apache.hugegraph.ct.config.ServerConfig;
 
 public class ServerNodeWrapper extends AbstractNodeWrapper {
 
@@ -141,5 +144,9 @@ public class ServerNodeWrapper extends AbstractNodeWrapper {
     @Override
     public String getID() {
         return "Server" + this.index;
+    }
+
+    public void bindConfig(ServerConfig config) {
+        this.bindHealthChecker(new PortHealthChecker(LOCALHOST, config.getRestPort()));
     }
 }

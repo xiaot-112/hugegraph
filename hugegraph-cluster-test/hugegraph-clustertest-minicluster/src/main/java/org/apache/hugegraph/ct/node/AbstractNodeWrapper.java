@@ -56,6 +56,7 @@ public abstract class AbstractNodeWrapper implements BaseNodeWrapper {
     protected int index;
     protected List<String> fileNames;
     protected String startLine;
+    protected HealthChecker healthChecker;
 
     public AbstractNodeWrapper() {
         this.clusterIndex = 1;
@@ -147,6 +148,48 @@ public abstract class AbstractNodeWrapper implements BaseNodeWrapper {
 
     @Override
     public boolean isStarted() {
+        if (this.healthChecker != null) {
+            return this.healthChecker.isReady(0);
+        }
+        return logLineDetected();
+    }
+
+    @Override
+    public boolean waitForReady(long timeoutMs) {
+        if (this.healthChecker != null) {
+            return this.healthChecker.isReady(timeoutMs);
+        }
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            if (logLineDetected()) {
+                return true;
+            }
+            try {
+                Thread.sleep(ClusterConstant.HEALTH_POLL_INTERVAL_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public HealthChecker getHealthChecker() {
+        return this.healthChecker;
+    }
+
+    @Override
+    public void bindHealthChecker(HealthChecker healthChecker) {
+        this.healthChecker = healthChecker;
+    }
+
+    @Override
+    public int getIndex() {
+        return this.index;
+    }
+
+    protected boolean logLineDetected() {
         try (Scanner sc = new Scanner(new FileReader(getLogPath()))) {
             while (sc.hasNextLine()) {
                 String line = sc.nextLine();

@@ -17,31 +17,7 @@
 
 package org.apache.hugegraph.ct.node;
 
-public interface BaseNodeWrapper {
+public interface HealthChecker {
 
-    void start();
-
-    void stop();
-
-    boolean isAlive();
-
-    String getID();
-
-    String getNodePath();
-
-    String getLogPath();
-
-    void updateWorkPath(String workPath);
-
-    void updateConfigPath(String ConfigPath);
-
-    boolean isStarted();
-
-    boolean waitForReady(long timeoutMs);
-
-    HealthChecker getHealthChecker();
-
-    void bindHealthChecker(HealthChecker healthChecker);
-
-    int getIndex();
+    boolean isReady(long timeoutMs);
 }
