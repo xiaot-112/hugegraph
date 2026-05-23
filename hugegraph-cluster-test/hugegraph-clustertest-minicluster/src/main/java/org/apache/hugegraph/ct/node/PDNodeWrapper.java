@@ -97,6 +97,5 @@ public class PDNodeWrapper extends AbstractNodeWrapper {
 
     public void bindConfig(PDConfig config) {
         this.pdConfig = config;
-        this.bindHealthChecker(new PDHealthChecker(config.getGrpcAddress()));
     }
 }

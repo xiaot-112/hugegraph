@@ -39,9 +39,5 @@ public interface BaseNodeWrapper {
 
     boolean waitForReady(long timeoutMs);
 
-    HealthChecker getHealthChecker();
-
-    void bindHealthChecker(HealthChecker healthChecker);
-
     int getIndex();
 }

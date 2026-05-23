@@ -147,6 +147,6 @@ public class ServerNodeWrapper extends AbstractNodeWrapper {
     }
 
     public void bindConfig(ServerConfig config) {
-        this.bindHealthChecker(new PortHealthChecker(LOCALHOST, config.getRestPort()));
+        // No-op: config binding kept for API compatibility
     }
 }

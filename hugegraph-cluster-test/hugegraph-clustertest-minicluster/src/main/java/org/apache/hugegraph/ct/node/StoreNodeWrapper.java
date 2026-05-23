@@ -96,6 +96,6 @@ public class StoreNodeWrapper extends AbstractNodeWrapper {
     }
 
     public void bindConfig(StoreConfig config) {
-        this.bindHealthChecker(new PortHealthChecker(LOCALHOST, config.getRestPort()));
+        // No-op: config binding kept for API compatibility
     }
 }

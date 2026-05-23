@@ -56,7 +56,6 @@ public abstract class AbstractNodeWrapper implements BaseNodeWrapper {
     protected int index;
     protected List<String> fileNames;
     protected String startLine;
-    protected HealthChecker healthChecker;
 
     public AbstractNodeWrapper() {
         this.clusterIndex = 1;
@@ -148,17 +147,11 @@ public abstract class AbstractNodeWrapper implements BaseNodeWrapper {
 
     @Override
     public boolean isStarted() {
-        if (this.healthChecker != null) {
-            return this.healthChecker.isReady(0);
-        }
         return logLineDetected();
     }
 
     @Override
     public boolean waitForReady(long timeoutMs) {
-        if (this.healthChecker != null) {
-            return this.healthChecker.isReady(timeoutMs);
-        }
         long deadline = System.currentTimeMillis() + timeoutMs;
         while (System.currentTimeMillis() < deadline) {
             if (logLineDetected()) {
@@ -172,16 +165,6 @@ public abstract class AbstractNodeWrapper implements BaseNodeWrapper {
             }
         }
         return false;
-    }
-
-    @Override
-    public HealthChecker getHealthChecker() {
-        return this.healthChecker;
-    }
-
-    @Override
-    public void bindHealthChecker(HealthChecker healthChecker) {
-        this.healthChecker = healthChecker;
     }
 
     @Override
