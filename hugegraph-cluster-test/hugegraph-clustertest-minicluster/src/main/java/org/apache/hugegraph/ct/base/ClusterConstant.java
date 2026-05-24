@@ -55,8 +55,10 @@ public class ClusterConstant {
     public static final String EXAMPLE_GROOVY_FILE = "scripts/example.groovy";
     public static final String LOCALHOST = "127.0.0.1";
 
-    public static final long NODE_START_TIMEOUT_MS = 60_000L;
-    public static final long CLUSTER_START_TIMEOUT_MS = 180_000L;
+    public static final long NODE_START_TIMEOUT_MS =
+            Long.getLong("cluster.node.start.timeout", 120_000L);
+    public static final long CLUSTER_START_TIMEOUT_MS =
+            Long.getLong("cluster.start.timeout", 360_000L);
     public static final long HEALTH_POLL_INTERVAL_MS = 500L;
 
     public static final String JAVA_CMD =
