@@ -36,10 +36,13 @@ public class BaseE2ETest extends BaseClusterTest {
     @BeforeClass
     public static void initE2E() {
         testGraphName = "e2e_" + BaseE2ETest.class.getSimpleName().toLowerCase();
+        env = createE2EEnv();
+        env.startCluster();
+        initClients();
+        initGraph(testGraphName);
     }
 
-    @Override
-    protected BaseEnv createEnv() {
+    protected static BaseEnv createE2EEnv() {
         ClusterScale scale = BaseE2ETest.class.getAnnotation(ClusterScale.class);
         if (scale != null) {
             return new DynamicEnv(scale.pd(), scale.store(), scale.server());
