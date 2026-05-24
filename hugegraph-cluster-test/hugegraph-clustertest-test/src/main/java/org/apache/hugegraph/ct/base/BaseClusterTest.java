@@ -22,7 +22,6 @@ import java.util.List;
 
 import org.apache.hugegraph.ct.client.ClusterRestClient;
 import org.apache.hugegraph.ct.env.BaseEnv;
-import org.apache.hugegraph.exception.HugeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -93,8 +92,8 @@ public abstract class BaseClusterTest {
                           "}";
             r = client.post(prefix, body);
             if (r.getStatus() != 201) {
-                throw new HugeException("Failed to create graph: " + graph +
-                                        r.readEntity(String.class));
+                throw new RuntimeException("Failed to create graph: " + graph +
+                                          r.readEntity(String.class));
             }
         }
     }

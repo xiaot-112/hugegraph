@@ -25,7 +25,6 @@ import java.util.Map;
 import org.apache.hugegraph.ct.env.BaseEnv;
 import org.apache.hugegraph.ct.env.SimpleEnv;
 import org.apache.hugegraph.pd.client.PDClient;
-import org.apache.hugegraph.exception.HugeException;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.client.filter.EncodingFilter;
 import org.glassfish.jersey.message.GZipEncoder;
@@ -103,8 +102,8 @@ public class BaseSimpleTest {
                           "}";
             r = client.post(URL_PREFIX, body);
             if (r.getStatus() != 201) {
-                throw new HugeException("Failed to create graph: " + GRAPH +
-                                        r.readEntity(String.class));
+                throw new RuntimeException("Failed to create graph: " + GRAPH +
+                                          r.readEntity(String.class));
             }
         }
     }

@@ -27,7 +27,6 @@ import org.apache.hugegraph.SimpleClusterTest.BaseSimpleTest;
 import org.apache.hugegraph.SimpleClusterTest.BaseSimpleTest.RestClient;
 import org.apache.hugegraph.ct.env.BaseEnv;
 import org.apache.hugegraph.ct.env.MultiNodeEnv;
-import org.apache.hugegraph.exception.HugeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -82,8 +81,8 @@ public class BaseMultiClusterTest {
                           "}";
             r = client.post(URL_PREFIX, body);
             if (r.getStatus() != 201) {
-                throw new HugeException(String.format(
-                        "Failed to initialize graph %s %s",GRAPH, r.readEntity(String.class)
+                throw new RuntimeException(String.format(
+                        "Failed to initialize graph %s %s", GRAPH, r.readEntity(String.class)
                 ));
             }
         }
