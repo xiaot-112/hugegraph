@@ -32,5 +32,5 @@ public @interface ClusterScale {
 
     int server() default 1;
 
-    long startTimeoutMs() default ClusterConstant.CLUSTER_START_TIMEOUT_MS;
+    long startTimeoutMs() default 360_000L;
 }
