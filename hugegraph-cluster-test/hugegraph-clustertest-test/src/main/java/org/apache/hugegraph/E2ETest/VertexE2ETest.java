@@ -54,8 +54,9 @@ public class VertexE2ETest extends BaseE2ETest {
         String vertexContent = r.readEntity(String.class);
         String vertexId = extractId(vertexContent);
 
-        String updateBody = "{\"age\":31}";
-        r = client.put(vertices + "/" + vertexId, updateBody);
+        String updateBody = "{\"properties\":{\"age\":31}}";
+        r = client.put(vertices + "/" + vertexId, updateBody,
+                        java.util.Map.of("action", "append"));
         assertEquals(200, r.getStatus());
     }
 
@@ -100,6 +101,7 @@ public class VertexE2ETest extends BaseE2ETest {
                content.charAt(end) != '}') {
             end++;
         }
-        return content.substring(start, end);
+        String rawId = content.substring(start, end);
+        return "\"" + rawId + "\"";
     }
 }

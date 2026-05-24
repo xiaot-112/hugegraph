@@ -90,8 +90,8 @@ public class BaseE2ETest extends BaseClusterTest {
         String prefix = "graphspaces/DEFAULT/graphs/" + graph;
         String ilUrl = prefix + "/schema/indexlabels";
         client.post(ilUrl, "{\"name\":\"personByName\",\"base_type\":\"VERTEX_LABEL\"," +
-                           "\"base_value\":\"person\",\"fields\":[\"name\"]," +
-                           "\"check_exist\":false}");
+                           "\"base_value\":\"person\",\"index_type\":\"SECONDARY\"," +
+                           "\"fields\":[\"name\"],\"check_exist\":false}");
     }
 
     protected Response ensureOk(Response r, int expectedStatus) {

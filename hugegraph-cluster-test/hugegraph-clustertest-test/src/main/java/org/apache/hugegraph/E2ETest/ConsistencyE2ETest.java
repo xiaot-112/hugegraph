@@ -68,6 +68,7 @@ public class ConsistencyE2ETest extends BaseE2ETest {
                content.charAt(end) != '}') {
             end++;
         }
-        return content.substring(start, end);
+        String rawId = content.substring(start, end);
+        return "\"" + rawId + "\"";
     }
 }

@@ -54,11 +54,7 @@ public class DynamicScaleE2ETest extends BaseE2ETest {
         if (originalCount <= 1) {
             return;
         }
-        int lastServerIndex = -1;
-        for (int i = 0; i < originalCount; i++) {
-            lastServerIndex = i;
-        }
-        env.removeServerNode(lastServerIndex);
+        env.removeServerNode(originalCount - 1);
         assertEquals(originalCount - 1, env.getAliveServerNodeCount());
     }
 }

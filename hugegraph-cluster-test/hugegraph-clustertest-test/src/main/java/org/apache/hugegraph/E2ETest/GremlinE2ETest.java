@@ -34,7 +34,7 @@ public class GremlinE2ETest extends BaseE2ETest {
         client.post(vertices, "{\"label\":\"person\",\"properties\":{\"name\":\"g1\",\"age\":20}}");
         client.post(vertices, "{\"label\":\"person\",\"properties\":{\"name\":\"g2\",\"age\":21}}");
 
-        String gremlinUrl = testUrlPrefix + "/gremlin";
+        String gremlinUrl = "gremlin";
         String body = "{\"gremlin\":\"g.V().hasLabel('person').count()\"}";
         Response r = client.post(gremlinUrl, body);
         assertEquals(200, r.getStatus());
@@ -58,14 +58,14 @@ public class GremlinE2ETest extends BaseE2ETest {
             "{\"label\":\"person\",\"properties\":{\"name\":\"a3\",\"age\":22}}");
         String id3 = extractId(r3.readEntity(String.class));
 
-        client.post(edges, "{\"label\":\"knows\",\"source\":\"" + id1 +
-                           "\",\"target\":\"" + id2 +
+        client.post(edges, "{\"label\":\"knows\",\"outV\":\"" + id1 +
+                           "\",\"inV\":\"" + id2 +
                            "\",\"properties\":{\"weight\":0.5}}");
-        client.post(edges, "{\"label\":\"knows\",\"source\":\"" + id2 +
-                           "\",\"target\":\"" + id3 +
+        client.post(edges, "{\"label\":\"knows\",\"outV\":\"" + id2 +
+                           "\",\"inV\":\"" + id3 +
                            "\",\"properties\":{\"weight\":0.6}}");
 
-        String gremlinUrl = testUrlPrefix + "/gremlin";
+        String gremlinUrl = "gremlin";
         String body = "{\"gremlin\":\"g.V().has('name','a1').out('knows').out('knows').values('name')\"}";
         Response r = client.post(gremlinUrl, body);
         assertEquals(200, r.getStatus());
@@ -84,6 +84,7 @@ public class GremlinE2ETest extends BaseE2ETest {
                content.charAt(end) != '}') {
             end++;
         }
-        return content.substring(start, end);
+        String rawId = content.substring(start, end);
+        return "\"" + rawId + "\"";
     }
 }

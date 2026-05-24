@@ -42,8 +42,8 @@ public class EdgeE2ETest extends BaseE2ETest {
         assertEquals(201, r2.getStatus());
         String id2 = extractId(r2.readEntity(String.class));
 
-        String edgeBody = "{\"label\":\"knows\",\"source\":\"" + id1 +
-                          "\",\"target\":\"" + id2 +
+        String edgeBody = "{\"label\":\"knows\",\"outV\":\"" + id1 +
+                          "\",\"inV\":\"" + id2 +
                           "\",\"properties\":{\"weight\":0.8}}";
         Response re = client.post(edges, edgeBody);
         assertEquals(201, re.getStatus());
@@ -70,8 +70,8 @@ public class EdgeE2ETest extends BaseE2ETest {
         Response r2 = client.post(vertices, v2);
         String id2 = extractId(r2.readEntity(String.class));
 
-        String edgeBody = "{\"label\":\"knows\",\"source\":\"" + id1 +
-                          "\",\"target\":\"" + id2 +
+        String edgeBody = "{\"label\":\"knows\",\"outV\":\"" + id1 +
+                          "\",\"inV\":\"" + id2 +
                           "\",\"properties\":{\"weight\":0.5}}";
         Response re = client.post(edges, edgeBody);
         assertEquals(201, re.getStatus());
@@ -92,6 +92,7 @@ public class EdgeE2ETest extends BaseE2ETest {
                content.charAt(end) != '}') {
             end++;
         }
-        return content.substring(start, end);
+        String rawId = content.substring(start, end);
+        return "\"" + rawId + "\"";
     }
 }

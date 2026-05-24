@@ -100,6 +100,14 @@ public class ClusterRestClient implements AutoCloseable {
         return this.target.path(path).request().put(Entity.json(content));
     }
 
+    public Response put(String path, String content, Map<String, Object> queryParams) {
+        WebTarget t = this.target.path(path);
+        for (Map.Entry<String, Object> entry : queryParams.entrySet()) {
+            t = t.queryParam(entry.getKey(), entry.getValue());
+        }
+        return t.request().put(Entity.json(content));
+    }
+
     public Response delete(String path) {
         return this.target.path(path).request().delete();
     }

@@ -88,8 +88,8 @@ public class SchemaE2ETest extends BaseE2ETest {
 
         String ils = testUrlPrefix + "/schema/indexlabels";
         String body = "{\"name\":\"ageIdx\",\"base_type\":\"VERTEX_LABEL\"," +
-                      "\"base_value\":\"person\",\"fields\":[\"age\"]," +
-                      "\"check_exist\":false}";
+                      "\"base_value\":\"person\",\"index_type\":\"RANGE\"," +
+                      "\"fields\":[\"age\"],\"check_exist\":false}";
         Response r = client.post(ils, body);
         assertTrue("Expected 2xx, got " + r.getStatus() + ": " +
                    (r.getStatus() >= 300 ? r.readEntity(String.class) : ""),
