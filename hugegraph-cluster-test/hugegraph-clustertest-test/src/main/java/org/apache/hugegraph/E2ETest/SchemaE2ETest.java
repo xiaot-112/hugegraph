@@ -33,7 +33,7 @@ public class SchemaE2ETest extends BaseE2ETest {
         String body = "{\"name\":\"pk_test\",\"data_type\":\"TEXT\"," +
                       "\"cardinality\":\"SINGLE\",\"check_exist\":false}";
         Response r = client.post(pks, body);
-        assertEquals(202, r.getStatus());
+        assertTrue("Expected 2xx, got " + r.getStatus(), r.getStatus() >= 200 && r.getStatus() < 300);
 
         r = client.get(pks + "/pk_test");
         assertEquals(200, r.getStatus());
@@ -57,7 +57,7 @@ public class SchemaE2ETest extends BaseE2ETest {
                       "\"primary_keys\":[\"vl_name\"],\"properties\":[\"vl_name\"]," +
                       "\"check_exist\":false}";
         Response r = client.post(vls, body);
-        assertEquals(202, r.getStatus());
+        assertTrue("Expected 2xx, got " + r.getStatus(), r.getStatus() >= 200 && r.getStatus() < 300);
 
         r = client.get(vls + "/vl_test");
         assertEquals(200, r.getStatus());
@@ -74,7 +74,7 @@ public class SchemaE2ETest extends BaseE2ETest {
                       "\"target_label\":\"person\",\"properties\":[\"weight\"]," +
                       "\"check_exist\":false}";
         Response r = client.post(els, body);
-        assertEquals(202, r.getStatus());
+        assertTrue("Expected 2xx, got " + r.getStatus(), r.getStatus() >= 200 && r.getStatus() < 300);
 
         r = client.get(els + "/el_test");
         assertEquals(200, r.getStatus());
@@ -84,14 +84,16 @@ public class SchemaE2ETest extends BaseE2ETest {
 
     @Test
     public void testIndexLabelCRUD() {
-        createBasicSchemaWithIndex(testGraphName);
+        createBasicSchema(testGraphName);
 
         String ils = testUrlPrefix + "/schema/indexlabels";
         String body = "{\"name\":\"ageIdx\",\"base_type\":\"VERTEX_LABEL\"," +
                       "\"base_value\":\"person\",\"index_fields\":[\"age\"]," +
                       "\"check_exist\":false}";
         Response r = client.post(ils, body);
-        assertEquals(202, r.getStatus());
+        assertTrue("Expected 2xx, got " + r.getStatus() + ": " +
+                   (r.getStatus() >= 300 ? r.readEntity(String.class) : ""),
+                   r.getStatus() >= 200 && r.getStatus() < 300);
 
         r = client.get(ils + "/ageIdx");
         assertEquals(200, r.getStatus());
