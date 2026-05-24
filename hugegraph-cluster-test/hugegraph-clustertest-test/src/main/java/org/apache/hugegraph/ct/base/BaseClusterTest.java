@@ -41,9 +41,10 @@ public abstract class BaseClusterTest {
     protected static String graphName = DEFAULT_GRAPH;
     protected static String urlPrefix;
 
-    @BeforeClass
-    public static void initClusterTest() {
-        env = createEnv();
+    protected static void setupCluster() {
+        if (env == null) {
+            env = createEnv();
+        }
         env.startCluster();
         initClients();
         initGraph(graphName);

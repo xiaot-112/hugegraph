@@ -37,9 +37,7 @@ public class BaseE2ETest extends BaseClusterTest {
     public static void initE2E() {
         testGraphName = "e2e_" + BaseE2ETest.class.getSimpleName().toLowerCase();
         env = createE2EEnv();
-        env.startCluster();
-        initClients();
-        initGraph(testGraphName);
+        setupCluster();
     }
 
     protected static BaseEnv createE2EEnv() {
