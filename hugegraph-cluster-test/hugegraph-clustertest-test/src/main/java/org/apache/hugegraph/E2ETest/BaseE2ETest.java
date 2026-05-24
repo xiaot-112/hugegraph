@@ -35,7 +35,8 @@ public class BaseE2ETest extends BaseClusterTest {
 
     @BeforeClass
     public static void initE2E() {
-        testGraphName = "e2e_" + BaseE2ETest.class.getSimpleName().toLowerCase();
+        testGraphName = DEFAULT_GRAPH;
+        testUrlPrefix = "graphspaces/DEFAULT/graphs/" + testGraphName;
         env = createE2EEnv();
         setupCluster();
     }
@@ -50,13 +51,10 @@ public class BaseE2ETest extends BaseClusterTest {
 
     @Before
     public void setupTestGraph() {
-        testUrlPrefix = "graphspaces/DEFAULT/graphs/" + testGraphName;
-        initGraph(testGraphName);
     }
 
     @After
     public void cleanupTestGraph() {
-        dropGraph(testGraphName);
     }
 
     protected void createBasicSchema(String graph) {
