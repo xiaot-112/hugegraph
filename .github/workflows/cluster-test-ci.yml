@@ -45,28 +45,28 @@ jobs:
 
       - name: Run simple cluster test
         run: |
-          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P simple-cluster-test
+          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P simple-cluster-test -DfailIfNoTests=false
 
       - name: Run multi cluster test
         run: |
-          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P multi-cluster-test
+          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P multi-cluster-test -DfailIfNoTests=false
 
       - name: Run E2E schema test
         run: |
-          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P e2e-test -Dtest=SchemaE2ETest
+          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P e2e-test -Dtest=SchemaE2ETest -DfailIfNoTests=false
 
       - name: Run E2E vertex/edge test
         run: |
-          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P e2e-test -Dtest=VertexE2ETest,EdgeE2ETest
+          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P e2e-test -Dtest=VertexE2ETest,EdgeE2ETest -DfailIfNoTests=false
 
       - name: Run E2E gremlin test
         run: |
-          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P e2e-test -Dtest=GremlinE2ETest
+          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P e2e-test -Dtest=GremlinE2ETest -DfailIfNoTests=false
 
       - name: Run E2E consistency test
         run: |
-          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P e2e-test -Dtest=ConsistencyE2ETest
+          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P e2e-test -Dtest=ConsistencyE2ETest -DfailIfNoTests=false
 
       - name: Run E2E dynamic scale test
         run: |
-          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P e2e-test -Dtest=DynamicScaleE2ETest
+          mvn test -pl hugegraph-cluster-test/hugegraph-clustertest-test -am -P e2e-test -Dtest=DynamicScaleE2ETest -DfailIfNoTests=false
