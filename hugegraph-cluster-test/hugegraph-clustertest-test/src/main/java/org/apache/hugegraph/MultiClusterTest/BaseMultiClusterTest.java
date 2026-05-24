@@ -27,7 +27,7 @@ import org.apache.hugegraph.SimpleClusterTest.BaseSimpleTest;
 import org.apache.hugegraph.SimpleClusterTest.BaseSimpleTest.RestClient;
 import org.apache.hugegraph.ct.env.BaseEnv;
 import org.apache.hugegraph.ct.env.MultiNodeEnv;
-import org.apache.hugegraph.serializer.direct.util.HugeException;
+import org.apache.hugegraph.exception.HugeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;

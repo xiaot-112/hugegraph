@@ -37,7 +37,7 @@ public class VertexE2ETest extends BaseE2ETest {
         String content = r.readEntity(String.class);
         assertTrue(content.contains("\"name\":\"tom\""));
 
-        r = client.get(vertices, "label=person");
+        r = client.get(vertices, java.util.Map.of("label", "person"));
         assertEquals(200, r.getStatus());
         content = r.readEntity(String.class);
         assertTrue(content.contains("tom"));
@@ -82,7 +82,7 @@ public class VertexE2ETest extends BaseE2ETest {
         for (int i = 0; i < 50; i++) {
             if (i > 0) sb.append(",");
             sb.append("{\"label\":\"person\",\"properties\":{\"name\":\"user")
-              .append(i).append("\",\"age\":").append(i % 50 + 20).append("}");
+              .append(i).append("\",\"age\":").append(i % 50 + 20).append("}}");
         }
         sb.append("]");
         Response r = client.post(batchUrl, sb.toString());

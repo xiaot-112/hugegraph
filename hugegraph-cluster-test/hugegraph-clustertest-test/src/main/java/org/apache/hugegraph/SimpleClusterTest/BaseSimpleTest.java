@@ -25,7 +25,7 @@ import java.util.Map;
 import org.apache.hugegraph.ct.env.BaseEnv;
 import org.apache.hugegraph.ct.env.SimpleEnv;
 import org.apache.hugegraph.pd.client.PDClient;
-import org.apache.hugegraph.serializer.direct.util.HugeException;
+import org.apache.hugegraph.exception.HugeException;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.client.filter.EncodingFilter;
 import org.glassfish.jersey.message.GZipEncoder;

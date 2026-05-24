@@ -50,7 +50,7 @@ public class EdgeE2ETest extends BaseE2ETest {
         String content = re.readEntity(String.class);
         assertTrue(content.contains("\"label\":\"knows\""));
 
-        re = client.get(edges, "label=knows");
+        re = client.get(edges, java.util.Map.of("label", "knows"));
         assertEquals(200, re.getStatus());
         content = re.readEntity(String.class);
         assertTrue(content.contains("knows"));

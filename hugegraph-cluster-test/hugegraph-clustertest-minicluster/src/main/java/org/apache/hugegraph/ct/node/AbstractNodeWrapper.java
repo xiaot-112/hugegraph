@@ -200,7 +200,7 @@ public abstract class AbstractNodeWrapper implements BaseNodeWrapper {
     }
 
     public boolean isAlive() {
-        return this.instance.isAlive();
+        return this.instance != null && this.instance.isAlive();
     }
 
     protected ProcessBuilder runCmd(List<String> startCmd, File stdoutFile) throws IOException {

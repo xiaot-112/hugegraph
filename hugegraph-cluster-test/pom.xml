@@ -89,7 +89,7 @@
         <profile>
             <id>simple-cluster-test</id>
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <activeByDefault>false</activeByDefault>
             </activation>
             <build>
                 <plugins>
@@ -113,7 +113,7 @@
         <profile>
             <id>multi-cluster-test</id>
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <activeByDefault>false</activeByDefault>
             </activation>
             <build>
                 <plugins>

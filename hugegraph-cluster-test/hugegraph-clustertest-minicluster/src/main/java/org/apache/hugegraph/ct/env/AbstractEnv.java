@@ -109,7 +109,6 @@ public abstract class AbstractEnv implements BaseEnv {
         startNodesParallel(serverNodeWrappers);
     }
 
-    @SuppressWarnings("unchecked")
     private <T extends BaseNodeWrapper> void startNodesParallel(List<T> nodes) {
         if (nodes.isEmpty()) {
             return;
@@ -123,11 +122,14 @@ public abstract class AbstractEnv implements BaseEnv {
             for (T node : nodes) {
                 startFutures.add(executor.submit(node::start));
             }
-            for (Future<?> f : startFutures) {
+            for (int i = 0; i < startFutures.size(); i++) {
                 try {
-                    f.get();
+                    startFutures.get(i).get();
                 } catch (Exception e) {
-                    throw new RuntimeException("Failed to start node", e);
+                    for (int j = 0; j < i; j++) {
+                        try { nodes.get(j).stop(); } catch (Exception ignored) {}
+                    }
+                    throw new RuntimeException("Failed to start node " + nodes.get(i).getID(), e);
                 }
             }
 
@@ -139,11 +141,17 @@ public abstract class AbstractEnv implements BaseEnv {
             for (int i = 0; i < readyFutures.size(); i++) {
                 try {
                     if (!readyFutures.get(i).get()) {
+                        for (T node : nodes) {
+                            try { node.stop(); } catch (Exception ignored) {}
+                        }
                         throw new RuntimeException(
                             "Node " + nodes.get(i).getID() +
                             " failed to start within " + NODE_START_TIMEOUT_MS + "ms");
                     }
                 } catch (Exception e) {
+                    for (T node : nodes) {
+                        try { node.stop(); } catch (Exception ignored) {}
+                    }
                     throw new RuntimeException(
                         "Failed to wait for node " + nodes.get(i).getID(), e);
                 }
@@ -259,11 +267,7 @@ public abstract class AbstractEnv implements BaseEnv {
             clusterConfig.getServerConfigCount() - 1);
         ServerNodeWrapper serverNode = new ServerNodeWrapper(cluster_id, newIndex);
         serverConfig.setServerID(serverNode.getID());
-        if (serverNodeWrappers.isEmpty()) {
-            serverConfig.setRole("master");
-        } else {
-            serverConfig.setRole("worker");
-        }
+        serverConfig.setRole("worker");
         serverConfig.writeConfig(serverNode.getNodePath() + CONF_DIR);
         graphConfig.writeConfig(serverNode.getNodePath() + CONF_DIR);
         serverNode.bindConfig(serverConfig);

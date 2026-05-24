@@ -22,7 +22,7 @@ import java.util.List;
 
 import org.apache.hugegraph.ct.client.ClusterRestClient;
 import org.apache.hugegraph.ct.env.BaseEnv;
-import org.apache.hugegraph.serializer.direct.util.HugeException;
+import org.apache.hugegraph.exception.HugeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -45,6 +45,10 @@ public abstract class BaseClusterTest {
         if (env == null) {
             env = createEnv();
         }
+        if (env == null) {
+            throw new IllegalStateException("createEnv() returned null; " +
+                                           "subclass must override createEnv()");
+        }
         env.startCluster();
         initClients();
         initGraph(graphName);
@@ -52,13 +56,11 @@ public abstract class BaseClusterTest {
 
     @AfterClass
     public static void destroyClusterTest() {
-        if (client != null) {
-            client.close();
-        }
         for (ClusterRestClient c : serverClients) {
             c.close();
         }
         serverClients.clear();
+        client = null;
         if (env != null) {
             env.stopCluster();
         }
