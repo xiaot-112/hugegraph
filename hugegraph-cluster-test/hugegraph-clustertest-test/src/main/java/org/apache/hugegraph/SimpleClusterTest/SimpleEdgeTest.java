@@ -79,9 +79,7 @@ public class SimpleEdgeTest extends BaseSimpleTest {
         assertEquals(201, re.getStatus());
         String edgeId = extractId(re.readEntity(String.class));
 
-        // Try without JSON formatting - use raw edge ID
-        re = client.delete(edges + "/" + edgeId,
-                           Map.of("label", "knows"));
+        re = client.delete(edges + "/" + formatIdForUrl(edgeId));
         assertEquals(204, re.getStatus());
     }
 
