@@ -15,7 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.hugegraph.E2ETest;
+package org.apache.hugegraph.SimpleClusterTest;
+
+import java.util.Map;
 
 import org.junit.Test;
 
@@ -24,13 +26,13 @@ import jakarta.ws.rs.core.Response;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class EdgeE2ETest extends BaseE2ETest {
+public class SimpleEdgeTest extends BaseSimpleTest {
 
     @Test
     public void testCreateAndQueryEdge() {
-        createBasicSchema(testGraphName);
-        String vertices = testUrlPrefix + "/graph/vertices";
-        String edges = testUrlPrefix + "/graph/edges";
+        createBasicSchema();
+        String vertices = URL_PREFIX + "/graph/vertices";
+        String edges = URL_PREFIX + "/graph/edges";
 
         String v1 = "{\"label\":\"person\",\"properties\":{\"name\":\"alice\",\"age\":30}}";
         Response r1 = client.post(vertices, v1);
@@ -50,7 +52,7 @@ public class EdgeE2ETest extends BaseE2ETest {
         String content = re.readEntity(String.class);
         assertTrue(content.contains("\"label\":\"knows\""));
 
-        re = client.get(edges, java.util.Map.of("label", "knows"));
+        re = client.get(edges, Map.of("label", "knows"));
         assertEquals(200, re.getStatus());
         content = re.readEntity(String.class);
         assertTrue(content.contains("knows"));
@@ -58,9 +60,9 @@ public class EdgeE2ETest extends BaseE2ETest {
 
     @Test
     public void testDeleteEdge() {
-        createBasicSchema(testGraphName);
-        String vertices = testUrlPrefix + "/graph/vertices";
-        String edges = testUrlPrefix + "/graph/edges";
+        createBasicSchema();
+        String vertices = URL_PREFIX + "/graph/vertices";
+        String edges = URL_PREFIX + "/graph/edges";
 
         String v1 = "{\"label\":\"person\",\"properties\":{\"name\":\"eve\",\"age\":28}}";
         Response r1 = client.post(vertices, v1);
@@ -79,5 +81,43 @@ public class EdgeE2ETest extends BaseE2ETest {
 
         re = client.delete(edges + "/" + formatIdForUrl(edgeId));
         assertEquals(204, re.getStatus());
+    }
+
+    protected void createBasicSchema() {
+        String pkUrl = URL_PREFIX + "/schema/propertykeys";
+        client.post(pkUrl, "{\"name\":\"name\",\"data_type\":\"TEXT\"," +
+                           "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
+        client.post(pkUrl, "{\"name\":\"age\",\"data_type\":\"INT\"," +
+                           "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
+        client.post(pkUrl, "{\"name\":\"weight\",\"data_type\":\"DOUBLE\"," +
+                           "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
+
+        String vlUrl = URL_PREFIX + "/schema/vertexlabels";
+        client.post(vlUrl, "{\"name\":\"person\",\"id_strategy\":\"PRIMARY_KEY\"," +
+                           "\"primary_keys\":[\"name\"],\"properties\":[\"name\",\"age\"]," +
+                           "\"check_exist\":false}");
+
+        String elUrl = URL_PREFIX + "/schema/edgelabels";
+        client.post(elUrl, "{\"name\":\"knows\",\"source_label\":\"person\"," +
+                           "\"target_label\":\"person\",\"properties\":[\"weight\"]," +
+                           "\"check_exist\":false}");
+    }
+
+    protected static String extractId(String content) {
+        int idx = content.indexOf("\"id\":");
+        if (idx < 0) return "";
+        int start = idx + 5;
+        if (content.charAt(start) == '"') start++;
+        int end = start;
+        while (end < content.length() &&
+               content.charAt(end) != ',' && content.charAt(end) != '"' &&
+               content.charAt(end) != '}') {
+            end++;
+        }
+        return content.substring(start, end);
+    }
+
+    protected static String formatIdForUrl(String id) {
+        return "\"" + id + "\"";
     }
 }

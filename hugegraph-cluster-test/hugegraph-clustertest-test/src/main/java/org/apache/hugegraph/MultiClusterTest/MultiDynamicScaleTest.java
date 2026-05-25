@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.hugegraph.E2ETest;
+package org.apache.hugegraph.MultiClusterTest;
 
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class DynamicScaleE2ETest extends BaseE2ETest {
+public class MultiDynamicScaleTest extends BaseMultiClusterTest {
 
     @Test
     public void testAddPDNodeAndVerify() {

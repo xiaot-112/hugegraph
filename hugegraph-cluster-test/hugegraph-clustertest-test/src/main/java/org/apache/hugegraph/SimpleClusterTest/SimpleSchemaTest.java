@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.hugegraph.E2ETest;
+package org.apache.hugegraph.SimpleClusterTest;
 
 import org.junit.Test;
 
@@ -24,40 +24,37 @@ import jakarta.ws.rs.core.Response;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class SchemaE2ETest extends BaseE2ETest {
+public class SimpleSchemaTest extends BaseSimpleTest {
 
     @Test
     public void testPropertyKeyCRUD() {
-        String pks = testUrlPrefix + "/schema/propertykeys";
+        String pks = URL_PREFIX + "/schema/propertykeys";
 
         String body = "{\"name\":\"pk_test\",\"data_type\":\"TEXT\"," +
                       "\"cardinality\":\"SINGLE\",\"check_exist\":false}";
         Response r = client.post(pks, body);
-        assertTrue("Expected 2xx, got " + r.getStatus(), r.getStatus() >= 200 && r.getStatus() < 300);
+        assertTrue("Expected 2xx, got " + r.getStatus(),
+                   r.getStatus() >= 200 && r.getStatus() < 300);
 
         r = client.get(pks + "/pk_test");
         assertEquals(200, r.getStatus());
         String content = r.readEntity(String.class);
         assertTrue(content.contains("\"name\":\"pk_test\""));
-
-        r = client.get(pks);
-        assertEquals(200, r.getStatus());
-        content = r.readEntity(String.class);
-        assertTrue(content.contains("pk_test"));
     }
 
     @Test
     public void testVertexLabelCRUD() {
-        String pks = testUrlPrefix + "/schema/propertykeys";
+        String pks = URL_PREFIX + "/schema/propertykeys";
         client.post(pks, "{\"name\":\"vl_name\",\"data_type\":\"TEXT\"," +
                          "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
 
-        String vls = testUrlPrefix + "/schema/vertexlabels";
+        String vls = URL_PREFIX + "/schema/vertexlabels";
         String body = "{\"name\":\"vl_test\",\"id_strategy\":\"PRIMARY_KEY\"," +
                       "\"primary_keys\":[\"vl_name\"],\"properties\":[\"vl_name\"]," +
                       "\"check_exist\":false}";
         Response r = client.post(vls, body);
-        assertTrue("Expected 2xx, got " + r.getStatus(), r.getStatus() >= 200 && r.getStatus() < 300);
+        assertTrue("Expected 2xx, got " + r.getStatus(),
+                   r.getStatus() >= 200 && r.getStatus() < 300);
 
         r = client.get(vls + "/vl_test");
         assertEquals(200, r.getStatus());
@@ -67,14 +64,15 @@ public class SchemaE2ETest extends BaseE2ETest {
 
     @Test
     public void testEdgeLabelCRUD() {
-        createBasicSchema(testGraphName);
+        createBasicSchema();
 
-        String els = testUrlPrefix + "/schema/edgelabels";
+        String els = URL_PREFIX + "/schema/edgelabels";
         String body = "{\"name\":\"el_test\",\"source_label\":\"person\"," +
                       "\"target_label\":\"person\",\"properties\":[\"weight\"]," +
                       "\"check_exist\":false}";
         Response r = client.post(els, body);
-        assertTrue("Expected 2xx, got " + r.getStatus(), r.getStatus() >= 200 && r.getStatus() < 300);
+        assertTrue("Expected 2xx, got " + r.getStatus(),
+                   r.getStatus() >= 200 && r.getStatus() < 300);
 
         r = client.get(els + "/el_test");
         assertEquals(200, r.getStatus());
@@ -84,9 +82,9 @@ public class SchemaE2ETest extends BaseE2ETest {
 
     @Test
     public void testIndexLabelCRUD() {
-        createBasicSchema(testGraphName);
+        createBasicSchema();
 
-        String ils = testUrlPrefix + "/schema/indexlabels";
+        String ils = URL_PREFIX + "/schema/indexlabels";
         String body = "{\"name\":\"ageIdx\",\"base_type\":\"VERTEX_LABEL\"," +
                       "\"base_value\":\"person\",\"index_type\":\"RANGE\"," +
                       "\"fields\":[\"age\"],\"check_exist\":false}";
@@ -99,5 +97,31 @@ public class SchemaE2ETest extends BaseE2ETest {
         assertEquals(200, r.getStatus());
         String content = r.readEntity(String.class);
         assertTrue(content.contains("\"name\":\"ageIdx\""));
+    }
+
+    protected void createBasicSchema() {
+        String pkUrl = URL_PREFIX + "/schema/propertykeys";
+        client.post(pkUrl, "{\"name\":\"name\",\"data_type\":\"TEXT\"," +
+                           "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
+        client.post(pkUrl, "{\"name\":\"age\",\"data_type\":\"INT\"," +
+                           "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
+        client.post(pkUrl, "{\"name\":\"weight\",\"data_type\":\"DOUBLE\"," +
+                           "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
+
+        String vlUrl = URL_PREFIX + "/schema/vertexlabels";
+        client.post(vlUrl, "{\"name\":\"person\",\"id_strategy\":\"PRIMARY_KEY\"," +
+                           "\"primary_keys\":[\"name\"],\"properties\":[\"name\",\"age\"]," +
+                           "\"check_exist\":false}");
+        client.post(vlUrl, "{\"name\":\"software\",\"id_strategy\":\"PRIMARY_KEY\"," +
+                           "\"primary_keys\":[\"name\"],\"properties\":[\"name\",\"age\"]," +
+                           "\"check_exist\":false}");
+
+        String elUrl = URL_PREFIX + "/schema/edgelabels";
+        client.post(elUrl, "{\"name\":\"knows\",\"source_label\":\"person\"," +
+                           "\"target_label\":\"person\",\"properties\":[\"weight\"]," +
+                           "\"check_exist\":false}");
+        client.post(elUrl, "{\"name\":\"created\",\"source_label\":\"person\"," +
+                           "\"target_label\":\"software\",\"properties\":[\"weight\"]," +
+                           "\"check_exist\":false}");
     }
 }

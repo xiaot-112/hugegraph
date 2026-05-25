@@ -15,52 +15,84 @@
  * limitations under the License.
  */
 
-package org.apache.hugegraph.E2ETest;
+package org.apache.hugegraph.SimpleClusterTest;
 
-import org.apache.hugegraph.ct.base.BaseClusterTest;
-import org.apache.hugegraph.ct.base.ClusterScale;
-import org.apache.hugegraph.ct.env.BaseEnv;
-import org.apache.hugegraph.ct.env.DynamicEnv;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import java.util.Map;
+
+import org.junit.Test;
 
 import jakarta.ws.rs.core.Response;
 
-@ClusterScale(pd = 3, store = 3, server = 3)
-public class BaseE2ETest extends BaseClusterTest {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-    protected static String testGraphName;
-    protected static String testUrlPrefix;
+public class SimpleVertexTest extends BaseSimpleTest {
 
-    @BeforeClass
-    public static void initE2E() {
-        testGraphName = DEFAULT_GRAPH;
-        testUrlPrefix = "graphspaces/DEFAULT/graphs/" + testGraphName;
-        env = createE2EEnv();
-        setupCluster();
+    @Test
+    public void testCreateAndQueryVertex() {
+        createBasicSchema();
+        String vertices = URL_PREFIX + "/graph/vertices";
+
+        String body = "{\"label\":\"person\",\"properties\":{\"name\":\"tom\",\"age\":25}}";
+        Response r = client.post(vertices, body);
+        assertEquals(201, r.getStatus());
+        String content = r.readEntity(String.class);
+        assertTrue(content.contains("\"name\":\"tom\""));
+
+        r = client.get(vertices, Map.of("label", "person"));
+        assertEquals(200, r.getStatus());
+        content = r.readEntity(String.class);
+        assertTrue(content.contains("tom"));
     }
 
-    protected static BaseEnv createE2EEnv() {
-        ClusterScale scale = BaseE2ETest.class.getAnnotation(ClusterScale.class);
-        if (scale != null) {
-            return new DynamicEnv(scale.pd(), scale.store(), scale.server());
+    @Test
+    public void testUpdateVertexProperty() {
+        createBasicSchema();
+        String vertices = URL_PREFIX + "/graph/vertices";
+
+        String body = "{\"label\":\"person\",\"properties\":{\"name\":\"alice\",\"age\":30}}";
+        Response r = client.post(vertices, body);
+        assertEquals(201, r.getStatus());
+        String vertexId = extractId(r.readEntity(String.class));
+
+        String updateBody = "{\"properties\":{\"age\":31}}";
+        r = client.put(vertices + "/" + formatIdForUrl(vertexId), updateBody,
+                        Map.of("action", "append"));
+        assertEquals(200, r.getStatus());
+    }
+
+    @Test
+    public void testDeleteVertex() {
+        createBasicSchema();
+        String vertices = URL_PREFIX + "/graph/vertices";
+
+        String body = "{\"label\":\"person\",\"properties\":{\"name\":\"bob\",\"age\":22}}";
+        Response r = client.post(vertices, body);
+        assertEquals(201, r.getStatus());
+        String vertexId = extractId(r.readEntity(String.class));
+
+        r = client.delete(vertices + "/" + formatIdForUrl(vertexId));
+        assertEquals(204, r.getStatus());
+    }
+
+    @Test
+    public void testBatchCreateVertices() {
+        createBasicSchema();
+        String batchUrl = URL_PREFIX + "/graph/vertices/batch";
+
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < 50; i++) {
+            if (i > 0) sb.append(",");
+            sb.append("{\"label\":\"person\",\"properties\":{\"name\":\"user")
+              .append(i).append("\",\"age\":").append(i % 50 + 20).append("}}");
         }
-        return new DynamicEnv(3, 3, 3);
+        sb.append("]");
+        Response r = client.post(batchUrl, sb.toString());
+        assertEquals(201, r.getStatus());
     }
 
-    @Before
-    public void setupTestGraph() {
-    }
-
-    @After
-    public void cleanupTestGraph() {
-    }
-
-    protected void createBasicSchema(String graph) {
-        String prefix = "graphspaces/DEFAULT/graphs/" + graph;
-
-        String pkUrl = prefix + "/schema/propertykeys";
+    protected void createBasicSchema() {
+        String pkUrl = URL_PREFIX + "/schema/propertykeys";
         client.post(pkUrl, "{\"name\":\"name\",\"data_type\":\"TEXT\"," +
                            "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
         client.post(pkUrl, "{\"name\":\"age\",\"data_type\":\"INT\"," +
@@ -68,7 +100,7 @@ public class BaseE2ETest extends BaseClusterTest {
         client.post(pkUrl, "{\"name\":\"weight\",\"data_type\":\"DOUBLE\"," +
                            "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
 
-        String vlUrl = prefix + "/schema/vertexlabels";
+        String vlUrl = URL_PREFIX + "/schema/vertexlabels";
         client.post(vlUrl, "{\"name\":\"person\",\"id_strategy\":\"PRIMARY_KEY\"," +
                            "\"primary_keys\":[\"name\"],\"properties\":[\"name\",\"age\"]," +
                            "\"check_exist\":false}");
@@ -76,31 +108,13 @@ public class BaseE2ETest extends BaseClusterTest {
                            "\"primary_keys\":[\"name\"],\"properties\":[\"name\",\"age\"]," +
                            "\"check_exist\":false}");
 
-        String elUrl = prefix + "/schema/edgelabels";
+        String elUrl = URL_PREFIX + "/schema/edgelabels";
         client.post(elUrl, "{\"name\":\"knows\",\"source_label\":\"person\"," +
                            "\"target_label\":\"person\",\"properties\":[\"weight\"]," +
                            "\"check_exist\":false}");
         client.post(elUrl, "{\"name\":\"created\",\"source_label\":\"person\"," +
                            "\"target_label\":\"software\",\"properties\":[\"weight\"]," +
                            "\"check_exist\":false}");
-    }
-
-    protected void createBasicSchemaWithIndex(String graph) {
-        createBasicSchema(graph);
-        String prefix = "graphspaces/DEFAULT/graphs/" + graph;
-        String ilUrl = prefix + "/schema/indexlabels";
-        client.post(ilUrl, "{\"name\":\"personByName\",\"base_type\":\"VERTEX_LABEL\"," +
-                           "\"base_value\":\"person\",\"index_type\":\"SECONDARY\"," +
-                           "\"fields\":[\"name\"],\"check_exist\":false}");
-    }
-
-    protected Response ensureOk(Response r, int expectedStatus) {
-        if (r.getStatus() != expectedStatus) {
-            throw new AssertionError("Expected " + expectedStatus +
-                                     " but got " + r.getStatus() +
-                                     ": " + r.readEntity(String.class));
-        }
-        return r;
     }
 
     protected static String extractId(String content) {

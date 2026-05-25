@@ -26,6 +26,10 @@ import lombok.extern.slf4j.Slf4j;
 @Suite.SuiteClasses({
         SimpleClusterDeployTest.class,
         SimpleClusterFileTest.class,
+        SimpleSchemaTest.class,
+        SimpleVertexTest.class,
+        SimpleEdgeTest.class,
+        SimpleGremlinTest.class,
 })
 @Slf4j
 public class SimpleClusterSuiteTest {
