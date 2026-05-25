@@ -102,4 +102,22 @@ public class BaseE2ETest extends BaseClusterTest {
         }
         return r;
     }
+
+    protected static String extractId(String content) {
+        int idx = content.indexOf("\"id\":");
+        if (idx < 0) return "";
+        int start = idx + 5;
+        if (content.charAt(start) == '"') start++;
+        int end = start;
+        while (end < content.length() &&
+               content.charAt(end) != ',' && content.charAt(end) != '"' &&
+               content.charAt(end) != '}') {
+            end++;
+        }
+        return content.substring(start, end);
+    }
+
+    protected static String formatIdForUrl(String id) {
+        return "\"" + id + "\"";
+    }
 }

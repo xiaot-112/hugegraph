@@ -77,22 +77,7 @@ public class EdgeE2ETest extends BaseE2ETest {
         assertEquals(201, re.getStatus());
         String edgeId = extractId(re.readEntity(String.class));
 
-        re = client.delete(edges + "/" + edgeId);
+        re = client.delete(edges + "/" + formatIdForUrl(edgeId));
         assertEquals(204, re.getStatus());
-    }
-
-    private String extractId(String content) {
-        int idx = content.indexOf("\"id\":");
-        if (idx < 0) return "";
-        int start = idx + 5;
-        if (content.charAt(start) == '"') start++;
-        int end = start;
-        while (end < content.length() &&
-               content.charAt(end) != ',' && content.charAt(end) != '"' &&
-               content.charAt(end) != '}') {
-            end++;
-        }
-        String rawId = content.substring(start, end);
-        return "\"" + rawId + "\"";
     }
 }

@@ -49,26 +49,11 @@ public class ConsistencyE2ETest extends BaseE2ETest {
 
         for (int i = 1; i < serverClients.size(); i++) {
             ClusterRestClient reader = serverClients.get(i);
-            Response readR = reader.get(vertices + "/" + vertexId);
+            Response readR = reader.get(vertices + "/" + formatIdForUrl(vertexId));
             assertEquals(200, readR.getStatus());
             String content = readR.readEntity(String.class);
             assertTrue("Server " + i + " should see the vertex",
                        content.contains("consistency_test"));
         }
-    }
-
-    private String extractId(String content) {
-        int idx = content.indexOf("\"id\":");
-        if (idx < 0) return "";
-        int start = idx + 5;
-        if (content.charAt(start) == '"') start++;
-        int end = start;
-        while (end < content.length() &&
-               content.charAt(end) != ',' && content.charAt(end) != '"' &&
-               content.charAt(end) != '}') {
-            end++;
-        }
-        String rawId = content.substring(start, end);
-        return "\"" + rawId + "\"";
     }
 }

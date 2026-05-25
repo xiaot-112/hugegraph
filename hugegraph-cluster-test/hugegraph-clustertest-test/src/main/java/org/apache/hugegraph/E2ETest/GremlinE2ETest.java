@@ -72,19 +72,4 @@ public class GremlinE2ETest extends BaseE2ETest {
         String content = r.readEntity(String.class);
         assertTrue(content.contains("a3"));
     }
-
-    private String extractId(String content) {
-        int idx = content.indexOf("\"id\":");
-        if (idx < 0) return "";
-        int start = idx + 5;
-        if (content.charAt(start) == '"') start++;
-        int end = start;
-        while (end < content.length() &&
-               content.charAt(end) != ',' && content.charAt(end) != '"' &&
-               content.charAt(end) != '}') {
-            end++;
-        }
-        String rawId = content.substring(start, end);
-        return "\"" + rawId + "\"";
-    }
 }

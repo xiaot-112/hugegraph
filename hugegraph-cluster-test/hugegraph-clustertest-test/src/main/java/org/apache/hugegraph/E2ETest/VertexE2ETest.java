@@ -51,11 +51,10 @@ public class VertexE2ETest extends BaseE2ETest {
         String body = "{\"label\":\"person\",\"properties\":{\"name\":\"alice\",\"age\":30}}";
         Response r = client.post(vertices, body);
         assertEquals(201, r.getStatus());
-        String vertexContent = r.readEntity(String.class);
-        String vertexId = extractId(vertexContent);
+        String vertexId = extractId(r.readEntity(String.class));
 
         String updateBody = "{\"properties\":{\"age\":31}}";
-        r = client.put(vertices + "/" + vertexId, updateBody,
+        r = client.put(vertices + "/" + formatIdForUrl(vertexId), updateBody,
                         java.util.Map.of("action", "append"));
         assertEquals(200, r.getStatus());
     }
@@ -70,7 +69,7 @@ public class VertexE2ETest extends BaseE2ETest {
         assertEquals(201, r.getStatus());
         String vertexId = extractId(r.readEntity(String.class));
 
-        r = client.delete(vertices + "/" + vertexId);
+        r = client.delete(vertices + "/" + formatIdForUrl(vertexId));
         assertEquals(204, r.getStatus());
     }
 
@@ -88,20 +87,5 @@ public class VertexE2ETest extends BaseE2ETest {
         sb.append("]");
         Response r = client.post(batchUrl, sb.toString());
         assertEquals(201, r.getStatus());
-    }
-
-    private String extractId(String content) {
-        int idx = content.indexOf("\"id\":");
-        if (idx < 0) return "";
-        int start = idx + 5;
-        if (content.charAt(start) == '"') start++;
-        int end = start;
-        while (end < content.length() &&
-               content.charAt(end) != ',' && content.charAt(end) != '"' &&
-               content.charAt(end) != '}') {
-            end++;
-        }
-        String rawId = content.substring(start, end);
-        return "\"" + rawId + "\"";
     }
 }
