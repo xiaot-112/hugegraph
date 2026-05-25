@@ -17,6 +17,8 @@
 
 package org.apache.hugegraph.MultiClusterTest;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -33,4 +35,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MultiClusterSuiteTest {
 
+    @BeforeClass
+    public static void setupCluster() {
+        BaseMultiClusterTest.ensureClusterStarted();
+    }
+
+    @AfterClass
+    public static void teardownCluster() {
+        BaseMultiClusterTest.shutdownCluster();
+    }
 }

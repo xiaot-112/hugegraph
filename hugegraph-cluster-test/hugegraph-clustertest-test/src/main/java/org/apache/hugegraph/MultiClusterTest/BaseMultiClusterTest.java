@@ -27,18 +27,10 @@ import org.apache.hugegraph.SimpleClusterTest.BaseSimpleTest;
 import org.apache.hugegraph.SimpleClusterTest.BaseSimpleTest.RestClient;
 import org.apache.hugegraph.ct.env.BaseEnv;
 import org.apache.hugegraph.ct.env.MultiNodeEnv;
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
 
 import jakarta.ws.rs.core.Response;
 
-/**
- * MultiNode Test generate the cluster env with 3 pd node + 3 store node + 3 server node.
- * Or you can set different num of nodes by using env = new MultiNodeEnv(pdNum, storeNum, serverNum)
- * All nodes are deployed in ports generated randomly, the application of nodes are stored
- * in /apache-hugegraph-ct-1.7.0, you can visit each node with rest api.
- */
 public class BaseMultiClusterTest {
 
     protected static BaseEnv env;
@@ -49,8 +41,12 @@ public class BaseMultiClusterTest {
     protected static final String URL_PREFIX = "graphspaces/DEFAULT/graphs/" + GRAPH;
     protected static final String SCHEMA_PKS = "/schema/propertykeys";
 
-    @BeforeClass
-    public static void initEnv() {
+    private static boolean clusterStarted = false;
+
+    public static synchronized void ensureClusterStarted() {
+        if (clusterStarted) {
+            return;
+        }
         env = new MultiNodeEnv();
         env.startCluster();
         clients.clear();
@@ -58,19 +54,23 @@ public class BaseMultiClusterTest {
             clients.add(new RestClient(BASE_URL + addr));
         }
         initGraph();
+        clusterStarted = true;
     }
 
-    @AfterClass
-    public static void clearEnv() {
-        env.stopCluster();
-        for (RestClient client : clients) {
-            client.close();
+    public static synchronized void shutdownCluster() {
+        if (!clusterStarted) {
+            return;
         }
+        env.stopCluster();
+        for (RestClient c : clients) {
+            c.close();
+        }
+        clusterStarted = false;
     }
 
     protected static void initGraph() {
-        BaseSimpleTest.RestClient client = clients.get(0);
-        Response r = client.get(URL_PREFIX);
+        RestClient c = clients.get(0);
+        Response r = c.get(URL_PREFIX);
         if (r.getStatus() != 200) {
             String body = "{\n" +
                           "  \"backend\": \"hstore\",\n" +
@@ -79,7 +79,7 @@ public class BaseMultiClusterTest {
                           "  \"search.text_analyzer\": \"jieba\",\n" +
                           "  \"search.text_analyzer_mode\": \"INDEX\"\n" +
                           "}";
-            r = client.post(URL_PREFIX, body);
+            r = c.post(URL_PREFIX, body);
             if (r.getStatus() != 201) {
                 throw new RuntimeException(String.format(
                         "Failed to initialize graph %s %s", GRAPH, r.readEntity(String.class)

@@ -17,6 +17,8 @@
 
 package org.apache.hugegraph.SimpleClusterTest;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -34,4 +36,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SimpleClusterSuiteTest {
 
+    @BeforeClass
+    public static void setupCluster() {
+        BaseSimpleTest.ensureClusterStarted();
+    }
+
+    @AfterClass
+    public static void teardownCluster() {
+        BaseSimpleTest.shutdownCluster();
+    }
 }

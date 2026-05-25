@@ -28,9 +28,6 @@ import org.apache.hugegraph.pd.client.PDClient;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.client.filter.EncodingFilter;
 import org.glassfish.jersey.message.GZipEncoder;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
 
 import com.google.common.collect.Multimap;
 
@@ -41,11 +38,6 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 
-/**
- * Simple Test generate the cluster env with 1 pd node + 1 store node + 1 server node.
- * All nodes are deployed in ports generated randomly; The application of nodes is stored
- * in /apache-hugegraph-ct-1.7.0, you can visit each node with rest api.
- */
 public class BaseSimpleTest {
 
     protected static BaseEnv env;
@@ -61,19 +53,26 @@ public class BaseSimpleTest {
     protected static final String SCHEMA_PKS = "/schema/propertykeys";
     protected static RestClient client;
 
-    @BeforeClass
-    public static void initEnv() {
+    private static boolean clusterStarted = false;
+
+    public static synchronized void ensureClusterStarted() {
+        if (clusterStarted) {
+            return;
+        }
         env = new SimpleEnv();
         env.startCluster();
         client = new RestClient(BASE_URL + env.getServerRestAddrs().get(0));
         initGraph();
+        clusterStarted = true;
     }
 
-    @AfterClass
-    public static void clearEnv() throws InterruptedException {
+    public static synchronized void shutdownCluster() {
+        if (!clusterStarted) {
+            return;
+        }
         env.stopCluster();
-        Thread.sleep(2000);
         client.close();
+        clusterStarted = false;
     }
 
     protected String execCmd(String[] cmds) throws IOException {
@@ -186,14 +185,6 @@ public class BaseSimpleTest {
         public Response delete(String path) {
             return this.target.path(path).request().delete();
         }
-
-        public Response delete(String path, Map<String, Object> queryParams) {
-            WebTarget t = this.target.path(path);
-            for (Map.Entry<String, Object> entry : queryParams.entrySet()) {
-                t = t.queryParam(entry.getKey(), entry.getValue());
-            }
-            return t.request().delete();
-        }
     }
 
     protected static String assertResponseStatus(int status,
@@ -201,7 +192,7 @@ public class BaseSimpleTest {
         String content = response.readEntity(String.class);
         String message = String.format("Response with status %s and content %s",
                                        response.getStatus(), content);
-        Assert.assertEquals(message, status, response.getStatus());
+        org.junit.Assert.assertEquals(message, status, response.getStatus());
         return content;
     }
 
