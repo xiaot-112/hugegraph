@@ -34,7 +34,7 @@ public class SimpleGremlinTest extends BaseSimpleTest {
         client.post(vertices, "{\"label\":\"person\",\"properties\":{\"name\":\"g1\",\"age\":20}}");
         client.post(vertices, "{\"label\":\"person\",\"properties\":{\"name\":\"g2\",\"age\":21}}");
 
-        String gremlinUrl = "gremlin";
+        String gremlinUrl = URL_PREFIX + "/gremlin";
         String body = "{\"gremlin\":\"g.V().hasLabel('person').count()\"}";
         Response r = client.post(gremlinUrl, body);
         assertEquals(200, r.getStatus());
@@ -47,6 +47,8 @@ public class SimpleGremlinTest extends BaseSimpleTest {
         client.post(pkUrl, "{\"name\":\"name\",\"data_type\":\"TEXT\"," +
                            "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
         client.post(pkUrl, "{\"name\":\"age\",\"data_type\":\"INT\"," +
+                           "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
+        client.post(pkUrl, "{\"name\":\"weight\",\"data_type\":\"DOUBLE\"," +
                            "\"cardinality\":\"SINGLE\",\"check_exist\":false}");
 
         String vlUrl = URL_PREFIX + "/schema/vertexlabels";

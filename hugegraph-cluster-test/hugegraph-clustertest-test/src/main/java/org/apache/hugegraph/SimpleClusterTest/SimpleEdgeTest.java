@@ -79,7 +79,8 @@ public class SimpleEdgeTest extends BaseSimpleTest {
         assertEquals(201, re.getStatus());
         String edgeId = extractId(re.readEntity(String.class));
 
-        re = client.delete(edges + "/" + formatIdForUrl(edgeId));
+        re = client.delete(edges + "/" + formatIdForUrl(edgeId),
+                           Map.of("label", "knows"));
         assertEquals(204, re.getStatus());
     }
 
