@@ -25,36 +25,38 @@ import static org.junit.Assert.assertTrue;
 public class MultiDynamicScaleTest extends BaseMultiClusterTest {
 
     @Test
-    public void testAddPDNodeAndVerify() {
-        int originalCount = env.getAlivePDNodeCount();
-        int newIndex = env.addPDNode();
-        assertEquals(originalCount + 1, env.getAlivePDNodeCount());
-        assertTrue(newIndex >= 0);
-    }
-
-    @Test
-    public void testAddStoreNodeAndVerify() {
-        int originalCount = env.getAliveStoreNodeCount();
-        int newIndex = env.addStoreNode();
-        assertEquals(originalCount + 1, env.getAliveStoreNodeCount());
-        assertTrue(newIndex >= 0);
-    }
-
-    @Test
-    public void testAddServerNodeAndVerify() {
+    public void testAddAndRemoveServerNode() {
         int originalCount = env.getAliveServerNodeCount();
+        assertTrue("Need at least 1 server to test", originalCount >= 1);
+
         int newIndex = env.addServerNode();
         assertEquals(originalCount + 1, env.getAliveServerNodeCount());
-        assertTrue(newIndex >= 0);
+
+        env.removeServerNode(newIndex);
+        assertEquals(originalCount, env.getAliveServerNodeCount());
     }
 
     @Test
-    public void testRemoveServerNodeAndVerify() {
-        int originalCount = env.getAliveServerNodeCount();
-        if (originalCount <= 1) {
-            return;
-        }
-        env.removeServerNode(originalCount - 1);
-        assertEquals(originalCount - 1, env.getAliveServerNodeCount());
+    public void testAddAndRemovePDNode() {
+        int originalCount = env.getAlivePDNodeCount();
+        assertTrue("Need at least 1 PD to test", originalCount >= 1);
+
+        int newIndex = env.addPDNode();
+        assertEquals(originalCount + 1, env.getAlivePDNodeCount());
+
+        env.removePDNode(newIndex);
+        assertEquals(originalCount, env.getAlivePDNodeCount());
+    }
+
+    @Test
+    public void testAddAndRemoveStoreNode() {
+        int originalCount = env.getAliveStoreNodeCount();
+        assertTrue("Need at least 1 store to test", originalCount >= 1);
+
+        int newIndex = env.addStoreNode();
+        assertEquals(originalCount + 1, env.getAliveStoreNodeCount());
+
+        env.removeStoreNode(newIndex);
+        assertEquals(originalCount, env.getAliveStoreNodeCount());
     }
 }
