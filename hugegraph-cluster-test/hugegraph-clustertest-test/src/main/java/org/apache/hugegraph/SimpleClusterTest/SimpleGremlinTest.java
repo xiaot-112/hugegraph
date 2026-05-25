@@ -34,12 +34,13 @@ public class SimpleGremlinTest extends BaseSimpleTest {
         client.post(vertices, "{\"label\":\"person\",\"properties\":{\"name\":\"g1\",\"age\":20}}");
         client.post(vertices, "{\"label\":\"person\",\"properties\":{\"name\":\"g2\",\"age\":21}}");
 
-        String gremlinUrl = URL_PREFIX + "/gremlin";
+        // Use jobs/gremlin API which returns 201 and task_id
+        String gremlinUrl = URL_PREFIX + "/jobs/gremlin";
         String body = "{\"gremlin\":\"g.V().hasLabel('person').count()\"}";
         Response r = client.post(gremlinUrl, body);
-        assertEquals(200, r.getStatus());
+        assertEquals(201, r.getStatus());
         String content = r.readEntity(String.class);
-        assertTrue(content.contains("2"));
+        assertTrue(content.contains("task_id"));
     }
 
     protected void createBasicSchema() {
