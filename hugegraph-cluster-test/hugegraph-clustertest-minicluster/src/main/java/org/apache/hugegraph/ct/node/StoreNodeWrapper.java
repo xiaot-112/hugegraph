@@ -20,6 +20,7 @@ package org.apache.hugegraph.ct.node;
 import static org.apache.hugegraph.ct.base.ClusterConstant.CONF_DIR;
 import static org.apache.hugegraph.ct.base.ClusterConstant.JAVA_CMD;
 import static org.apache.hugegraph.ct.base.ClusterConstant.LOG4J_FILE;
+import static org.apache.hugegraph.ct.base.ClusterConstant.LOCALHOST;
 import static org.apache.hugegraph.ct.base.ClusterConstant.STORE_JAR_PREFIX;
 import static org.apache.hugegraph.ct.base.ClusterConstant.STORE_LIB_PATH;
 import static org.apache.hugegraph.ct.base.ClusterConstant.STORE_TEMPLATE_PATH;
@@ -32,6 +33,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import org.apache.hugegraph.ct.config.StoreConfig;
 
 public class StoreNodeWrapper extends AbstractNodeWrapper {
 
@@ -65,21 +68,35 @@ public class StoreNodeWrapper extends AbstractNodeWrapper {
             }
 
             String storeNodeJarPath = getFileInDir(workPath, STORE_JAR_PREFIX);
-            startCmd.addAll(Arrays.asList(
-                    "-Dname=HugeGraphStore" + this.index,
-                    "-Dlog4j.configurationFile=" + configPath + CONF_DIR
-                    + File.separator + "log4j2.xml",
-                    "-Dfastjson.parser.safeMode=true",
-                    "-Xms512m",
-                    "-Xmx2048m",
-                    "-XX:MetaspaceSize=256M",
-                    "-XX:+UseG1GC",
-                    "-XX:+ParallelRefProcEnabled",
-                    "-XX:+HeapDumpOnOutOfMemoryError",
-                    "-XX:HeapDumpPath=" + configPath + "logs",
-                    "-Dspring.config.location=" + configPath + CONF_DIR
-                    + File.separator + "application.yml",
-                    "-jar", storeNodeJarPath));
+            if (lightweight) {
+                startCmd.addAll(Arrays.asList(
+                        "-Dname=HugeGraphStore" + this.index,
+                        "-Dlog4j.configurationFile=" + configPath + CONF_DIR
+                        + File.separator + "log4j2.xml",
+                        "-Dfastjson.parser.safeMode=true",
+                        "-Xms128m",
+                        "-Xmx256m",
+                        "-XX:+UseSerialGC",
+                        "-Dspring.config.location=" + configPath + CONF_DIR
+                        + File.separator + "application.yml",
+                        "-jar", storeNodeJarPath));
+            } else {
+                startCmd.addAll(Arrays.asList(
+                        "-Dname=HugeGraphStore" + this.index,
+                        "-Dlog4j.configurationFile=" + configPath + CONF_DIR
+                        + File.separator + "log4j2.xml",
+                        "-Dfastjson.parser.safeMode=true",
+                        "-Xms512m",
+                        "-Xmx2048m",
+                        "-XX:MetaspaceSize=256M",
+                        "-XX:+UseG1GC",
+                        "-XX:+ParallelRefProcEnabled",
+                        "-XX:+HeapDumpOnOutOfMemoryError",
+                        "-XX:HeapDumpPath=" + configPath + "logs",
+                        "-Dspring.config.location=" + configPath + CONF_DIR
+                        + File.separator + "application.yml",
+                        "-jar", storeNodeJarPath));
+            }
             ProcessBuilder processBuilder = runCmd(startCmd, stdoutFile);
             this.instance = processBuilder.start();
         } catch (IOException ex) {
@@ -90,5 +107,9 @@ public class StoreNodeWrapper extends AbstractNodeWrapper {
     @Override
     public String getID() {
         return "Store" + this.index;
+    }
+
+    public void bindConfig(StoreConfig config) {
+        // No-op: config binding kept for API compatibility
     }
 }
