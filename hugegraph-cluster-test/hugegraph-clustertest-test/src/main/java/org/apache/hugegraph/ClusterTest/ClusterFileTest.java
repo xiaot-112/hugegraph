@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.hugegraph.SimpleClusterTest;
+package org.apache.hugegraph.ClusterTest;
 
 import java.io.File;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-public class SimpleClusterFileTest extends BaseSimpleTest {
+public class ClusterFileTest extends BaseClusterTest {
 
     @Test
     public void checkPDNodeDir() {
@@ -44,5 +44,4 @@ public class SimpleClusterFileTest extends BaseSimpleTest {
             Assert.assertTrue(new File(nodeDir).isDirectory());
         }
     }
-
 }

@@ -15,19 +15,34 @@
  * limitations under the License.
  */
 
-package org.apache.hugegraph.MultiClusterTest;
+package org.apache.hugegraph.ClusterTest;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
-import lombok.extern.slf4j.Slf4j;
-
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-        MultiClusterDeployTest.class,
-        MultiClusterFileTest.class,
+        ClusterDeployTest.class,
+        ClusterFileTest.class,
+        SchemaTest.class,
+        VertexTest.class,
+        EdgeTest.class,
+        GremlinTest.class,
+        ConsistencyTest.class,
+        DynamicScaleTest.class,
+        HybridClusterTest.class,
 })
-@Slf4j
-public class MultiClusterSuiteTest {
+public class ClusterSuiteTest {
 
+    @BeforeClass
+    public static void setupCluster() {
+        BaseClusterTest.ensureClusterStarted();
+    }
+
+    @AfterClass
+    public static void teardownCluster() {
+        BaseClusterTest.shutdownCluster();
+    }
 }
