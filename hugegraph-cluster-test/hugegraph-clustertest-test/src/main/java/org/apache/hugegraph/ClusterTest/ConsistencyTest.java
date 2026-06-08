@@ -27,8 +27,11 @@ import static org.junit.Assert.assertTrue;
 
 public class ConsistencyTest extends BaseClusterTest {
 
+    private static final int CONSISTENCY_POLL_MS = 2000;
+    private static final int CONSISTENCY_TIMEOUT_MS = 30_000;
+
     @Test
-    public void testWriteOnOneServerReadOnAnother() throws InterruptedException {
+    public void testWriteOnOneServerReadOnAnother() {
         if (clients.size() < 2) {
             return;
         }
@@ -43,15 +46,34 @@ public class ConsistencyTest extends BaseClusterTest {
         assertTrue(vertexContent.contains("consistency_test"));
         String vertexId = extractId(vertexContent);
 
-        Thread.sleep(3000);
-
         for (int i = 1; i < clients.size(); i++) {
             ClusterRestClient reader = clients.get(i);
-            Response readR = reader.get("/graph/vertices/" + formatIdForUrl(vertexId));
-            assertEquals(200, readR.getStatus());
-            String content = readR.readEntity(String.class);
-            assertTrue("Server " + i + " should see the vertex",
-                       content.contains("consistency_test"));
+            boolean found = false;
+            long deadline = System.currentTimeMillis() + CONSISTENCY_TIMEOUT_MS;
+            while (System.currentTimeMillis() < deadline) {
+                try {
+                    Response readR = reader.get("/graph/vertices/" + formatIdForUrl(vertexId));
+                    if (readR.getStatus() == 200) {
+                        String content = readR.readEntity(String.class);
+                        if (content.contains("consistency_test")) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    readR.close();
+                } catch (Exception e) {
+                    LOG.debug("Read from server {} failed, retrying: {}", i, e.getMessage());
+                }
+                try {
+                    Thread.sleep(CONSISTENCY_POLL_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(
+                            "Interrupted while waiting for consistency on server " + i);
+                }
+            }
+            assertTrue("Server " + i + " should see the vertex within " +
+                       CONSISTENCY_TIMEOUT_MS / 1000 + "s", found);
         }
     }
 }

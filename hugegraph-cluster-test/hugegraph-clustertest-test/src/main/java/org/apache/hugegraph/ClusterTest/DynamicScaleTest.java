@@ -29,8 +29,12 @@ public class DynamicScaleTest extends BaseClusterTest {
     private void waitForServerNodeCount(int expected, int original) {
         long deadline = System.currentTimeMillis() + NODE_ALIVE_TIMEOUT_MS;
         while (System.currentTimeMillis() < deadline) {
-            if (env.getAliveServerNodeCount() == expected) {
+            int current = env.getAliveServerNodeCount();
+            if (current == expected) {
                 return;
+            }
+            if (current < original) {
+                break;
             }
             try {
                 Thread.sleep(NODE_ALIVE_POLL_MS);
@@ -39,23 +43,26 @@ public class DynamicScaleTest extends BaseClusterTest {
                 throw new RuntimeException("Interrupted while waiting for server node count");
             }
         }
-        // Instead of hard fail, check if CI environment is resource-constrained
         int actual = env.getAliveServerNodeCount();
-        if (actual < expected && actual < original) {
+        if (actual < original) {
             throw new RuntimeException(
                 "Server nodes crashed during scale test (expected " + expected +
                 ", got " + actual + ", had " + original + "). " +
                 "Likely OOM in CI environment.");
         }
         assertTrue("Server node alive count timeout: expected " + expected + " but got " + actual,
-                   actual >= original);
+                   actual >= expected);
     }
 
     private void waitForPDNodeCount(int expected, int original) {
         long deadline = System.currentTimeMillis() + NODE_ALIVE_TIMEOUT_MS;
         while (System.currentTimeMillis() < deadline) {
-            if (env.getAlivePDNodeCount() == expected) {
+            int current = env.getAlivePDNodeCount();
+            if (current == expected) {
                 return;
+            }
+            if (current < original) {
+                break;
             }
             try {
                 Thread.sleep(NODE_ALIVE_POLL_MS);
@@ -65,7 +72,7 @@ public class DynamicScaleTest extends BaseClusterTest {
             }
         }
         int actual = env.getAlivePDNodeCount();
-        if (actual < expected && actual < original) {
+        if (actual < original) {
             throw new RuntimeException(
                 "PD nodes crashed during scale test (expected " + expected +
                 ", got " + actual + ", had " + original + "). " +
@@ -78,8 +85,12 @@ public class DynamicScaleTest extends BaseClusterTest {
     private void waitForStoreNodeCount(int expected, int original) {
         long deadline = System.currentTimeMillis() + NODE_ALIVE_TIMEOUT_MS;
         while (System.currentTimeMillis() < deadline) {
-            if (env.getAliveStoreNodeCount() == expected) {
+            int current = env.getAliveStoreNodeCount();
+            if (current == expected) {
                 return;
+            }
+            if (current < original) {
+                break;
             }
             try {
                 Thread.sleep(NODE_ALIVE_POLL_MS);
@@ -89,7 +100,7 @@ public class DynamicScaleTest extends BaseClusterTest {
             }
         }
         int actual = env.getAliveStoreNodeCount();
-        if (actual < expected && actual < original) {
+        if (actual < original) {
             throw new RuntimeException(
                 "Store nodes crashed during scale test (expected " + expected +
                 ", got " + actual + ", had " + original + "). " +
