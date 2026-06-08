@@ -19,6 +19,8 @@ package org.apache.hugegraph.ClusterTest;
 
 import org.apache.hugegraph.ct.client.ClusterRestClient;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jakarta.ws.rs.core.Response;
 
@@ -26,6 +28,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class ConsistencyTest extends BaseClusterTest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ConsistencyTest.class);
 
     private static final int CONSISTENCY_POLL_MS = 2000;
     private static final int CONSISTENCY_TIMEOUT_MS = 30_000;
