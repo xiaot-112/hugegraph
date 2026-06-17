@@ -17,7 +17,6 @@
 
 package org.apache.hugegraph.chaos.model;
 
-import java.time.Duration;
 import java.util.Map;
 
 public class Step {
@@ -25,7 +24,7 @@ public class Step {
     private String name;
     private StepType type;
     private StepAction action;
-    private Duration waitDuration;
+    private String duration;
 
     public String getName() {
         return name;
@@ -51,12 +50,12 @@ public class Step {
         this.action = action;
     }
 
-    public Duration getWaitDuration() {
-        return waitDuration;
+    public String getDuration() {
+        return duration;
     }
 
-    public void setWaitDuration(Duration waitDuration) {
-        this.waitDuration = waitDuration;
+    public void setDuration(String duration) {
+        this.duration = duration;
     }
 
     public static class StepAction {
@@ -65,7 +64,7 @@ public class Step {
         private String target;
         private String url;
         private Integer expectedStatus;
-        private Duration duration;
+        private String duration;
         private RecoveryPolicy recovery;
         private Map<String, Object> params;
         private String query;
@@ -102,11 +101,11 @@ public class Step {
             this.expectedStatus = expectedStatus;
         }
 
-        public Duration getDuration() {
+        public String getDuration() {
             return duration;
         }
 
-        public void setDuration(Duration duration) {
+        public void setDuration(String duration) {
             this.duration = duration;
         }
 

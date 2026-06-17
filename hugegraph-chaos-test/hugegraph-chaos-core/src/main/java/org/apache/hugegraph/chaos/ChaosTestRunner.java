@@ -32,9 +32,6 @@ public class ChaosTestRunner {
     public static void main(String[] args) {
         String configPath = System.getProperty("chaos.config",
                                                 "classpath:scenarios/default.yaml");
-        if (!configPath.startsWith("classpath:")) {
-            configPath = "classpath:" + configPath;
-        }
         LOG.info("ChaosTestRunner starting with config: {}", configPath);
 
         ChaosConfig config = YamlConfigLoader.load(configPath);

@@ -3,13 +3,13 @@ scenario:
   description: "Inject CPU stress on local node and verify recovery"
 
 target:
-  env: local
+  env: LOCAL
   local:
     clusterConfig: "cluster-test-single.yaml"
 
 steps:
   - name: "inject-cpu-stress"
-    type: fault
+    type: FAULT
     action:
       type: cpu_stress
       target: "localhost"
@@ -19,11 +19,11 @@ steps:
         cores: 2
 
   - name: "wait-for-stress"
-    type: wait
+    type: WAIT
     duration: 5s
 
   - name: "verify-system-responsive"
-    type: assertion
+    type: ASSERTION
     action:
       type: http
       url: "http://localhost:8080/graphs"

@@ -32,6 +32,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -149,8 +150,8 @@ public class ChaosEngine {
         result.setMessage("Fault injected: " + step.getAction().getType());
 
         RecoveryPolicy recovery = step.getAction().getRecovery();
-        if (recovery == RecoveryPolicy.AUTO && step.getAction().getDuration() != null) {
-            long millis = step.getAction().getDuration().toMillis();
+        if (recovery == RecoveryPolicy.auto && step.getAction().getDuration() != null) {
+            long millis = parseDuration(step.getAction().getDuration()).toMillis();
             LOG.info("Auto-recovery after {}ms", millis);
             Thread.sleep(millis);
             faultInjector.recover(step.getAction());
@@ -178,8 +179,8 @@ public class ChaosEngine {
 
     private void executeWaitStep(Step step, ChaosReport.StepResult result)
                                   throws InterruptedException {
-        long millis = step.getWaitDuration() != null
-                      ? step.getWaitDuration().toMillis()
+        long millis = step.getDuration() != null
+                      ? parseDuration(step.getDuration()).toMillis()
                       : 5000;
         LOG.info("Waiting for {}ms", millis);
         Thread.sleep(millis);
@@ -203,6 +204,24 @@ public class ChaosEngine {
         } catch (Exception e) {
             LOG.warn("HTTP check failed: {}", urlStr, e);
             return false;
+        }
+    }
+
+    private Duration parseDuration(String value) {
+        if (value == null || value.isEmpty()) {
+            return Duration.ZERO;
+        }
+        String v = value.trim().toLowerCase();
+        if (v.endsWith("ms")) {
+            return Duration.ofMillis(Long.parseLong(v.substring(0, v.length() - 2)));
+        } else if (v.endsWith("s")) {
+            return Duration.ofSeconds(Long.parseLong(v.substring(0, v.length() - 1)));
+        } else if (v.endsWith("m")) {
+            return Duration.ofMinutes(Long.parseLong(v.substring(0, v.length() - 1)));
+        } else if (v.endsWith("h")) {
+            return Duration.ofHours(Long.parseLong(v.substring(0, v.length() - 1)));
+        } else {
+            return Duration.ofSeconds(Long.parseLong(v));
         }
     }
 }

@@ -3,13 +3,13 @@ scenario:
   description: "Inject network delay on local loopback and verify recovery"
 
 target:
-  env: local
+  env: LOCAL
   local:
     clusterConfig: "cluster-test-single.yaml"
 
 steps:
   - name: "inject-network-delay"
-    type: fault
+    type: FAULT
     action:
       type: network_delay
       target: "localhost"
@@ -20,11 +20,11 @@ steps:
         jitter: 50
 
   - name: "wait-for-delay"
-    type: wait
+    type: WAIT
     duration: 5s
 
   - name: "verify-network-recovered"
-    type: assertion
+    type: ASSERTION
     action:
       type: http
       url: "http://localhost:8080/graphs"

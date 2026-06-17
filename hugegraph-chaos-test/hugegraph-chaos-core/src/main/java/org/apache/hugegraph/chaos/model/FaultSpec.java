@@ -26,7 +26,7 @@ public class FaultSpec {
     private String type;
     private String target;
     private Duration duration;
-    private RecoveryPolicy recovery = RecoveryPolicy.AUTO;
+    private RecoveryPolicy recovery = RecoveryPolicy.auto;
     private Map<String, Object> params = new HashMap<>();
 
     public String getType() {

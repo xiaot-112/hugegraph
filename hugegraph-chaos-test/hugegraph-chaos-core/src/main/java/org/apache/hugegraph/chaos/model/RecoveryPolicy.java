@@ -19,7 +19,7 @@ package org.apache.hugegraph.chaos.model;
 
 public enum RecoveryPolicy {
 
-    AUTO,
-    MANUAL,
-    NONE
+    auto,
+    manual,
+    none
 }

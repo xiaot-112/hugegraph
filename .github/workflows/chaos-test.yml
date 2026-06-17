@@ -56,7 +56,8 @@ jobs:
 
       - name: Run chaos test
         run: |
-          java -Dchaos.config=${{ github.event.inputs.scenario }} \
+          SCENARIO_FILE="hugegraph-chaos-test/hugegraph-chaos-integration-test/src/test/resources/${{ github.event.inputs.scenario }}"
+          java -Dchaos.config="$SCENARIO_FILE" \
                -Dchaos.target=${{ github.event.inputs.target }} \
                -Dchaos.report.format=${{ github.event.inputs.report_format }} \
                -jar hugegraph-chaos-test/hugegraph-chaos-core/target/hugegraph-chaos-core-*.jar

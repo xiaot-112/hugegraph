@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -151,7 +152,9 @@ public class LocalFaultInjector implements FaultInjector {
     private void injectCpuStress(Step.StepAction action) throws Exception {
         Object coresObj = action.getParams().get("cores");
         int cores = coresObj instanceof Number ? ((Number) coresObj).intValue() : 1;
-        long durationSec = action.getDuration() != null ? action.getDuration().getSeconds() : 60;
+        long durationSec = action.getDuration() != null
+                           ? parseDuration(action.getDuration()).getSeconds()
+                           : 60;
         LOG.info("Injecting CPU stress: {} cores for {}s", cores, durationSec);
         String cmd = String.format("stress-ng --cpu %d --timeout %ds",
                                    cores, durationSec);
@@ -162,7 +165,9 @@ public class LocalFaultInjector implements FaultInjector {
     private void injectMemoryStress(Step.StepAction action) throws Exception {
         Object percentObj = action.getParams().get("percent");
         int percent = percentObj instanceof Number ? ((Number) percentObj).intValue() : 50;
-        long durationSec = action.getDuration() != null ? action.getDuration().getSeconds() : 60;
+        long durationSec = action.getDuration() != null
+                           ? parseDuration(action.getDuration()).getSeconds()
+                           : 60;
         LOG.info("Injecting memory stress: {}%% for {}s", percent, durationSec);
         String cmd = String.format("stress-ng --vm 1 --vm-bytes %d%% --timeout %ds",
                                    percent, durationSec);
@@ -222,5 +227,23 @@ public class LocalFaultInjector implements FaultInjector {
             return Integer.parseInt(str);
         }
         return 100;
+    }
+
+    private Duration parseDuration(String value) {
+        if (value == null || value.isEmpty()) {
+            return Duration.ZERO;
+        }
+        String v = value.trim().toLowerCase();
+        if (v.endsWith("ms")) {
+            return Duration.ofMillis(Long.parseLong(v.substring(0, v.length() - 2)));
+        } else if (v.endsWith("s")) {
+            return Duration.ofSeconds(Long.parseLong(v.substring(0, v.length() - 1)));
+        } else if (v.endsWith("m")) {
+            return Duration.ofMinutes(Long.parseLong(v.substring(0, v.length() - 1)));
+        } else if (v.endsWith("h")) {
+            return Duration.ofHours(Long.parseLong(v.substring(0, v.length() - 1)));
+        } else {
+            return Duration.ofSeconds(Long.parseLong(v));
+        }
     }
 }

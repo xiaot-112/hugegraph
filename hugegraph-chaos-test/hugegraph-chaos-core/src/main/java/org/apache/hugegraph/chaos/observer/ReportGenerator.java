@@ -19,6 +19,7 @@ package org.apache.hugegraph.chaos.observer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.hugegraph.chaos.model.ChaosConfig;
 import org.apache.hugegraph.chaos.model.ChaosReport;
 import org.apache.logging.log4j.LogManager;
@@ -80,6 +81,7 @@ public class ReportGenerator {
     private static void generateJson(ChaosReport report, String outputDir) {
         String path = outputDir + "/report.json";
         ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
         try {
             mapper.writeValue(new File(path), report);
