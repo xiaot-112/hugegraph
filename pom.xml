@@ -179,6 +179,8 @@
                             <exclude>**/*.map</exclude>
                             <exclude>**/*.properties</exclude>
                             <exclude>**/*.template</exclude>
+                            <exclude>**/*.yaml</exclude>
+                            <exclude>**/*.yml</exclude>
                             <exclude>**/bin/hugegraph.service</exclude>
                             <exclude>**/swagger-ui/**/*</exclude>
                             <exclude>scripts/dev/reviewers</exclude>
