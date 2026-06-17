@@ -51,7 +51,7 @@ jobs:
 
       - name: Build chaos module
         run: |
-          mvn clean package -pl hugegraph-chaos-test -am \
+          mvn clean package -pl hugegraph-chaos-test/hugegraph-chaos-core -am \
               -DskipTests -Dmaven.javadoc.skip=true -ntp
 
       - name: Run chaos test
@@ -59,9 +59,7 @@ jobs:
           java -Dchaos.config=${{ github.event.inputs.scenario }} \
                -Dchaos.target=${{ github.event.inputs.target }} \
                -Dchaos.report.format=${{ github.event.inputs.report_format }} \
-               -cp "hugegraph-chaos-test/hugegraph-chaos-core/target/classes:\
-               hugegraph-chaos-test/hugegraph-chaos-core/target/dependency/*" \
-               org.apache.hugegraph.chaos.ChaosTestRunner
+               -jar hugegraph-chaos-test/hugegraph-chaos-core/target/hugegraph-chaos-core-*-shaded.jar
 
       - name: Upload chaos report
         if: always()

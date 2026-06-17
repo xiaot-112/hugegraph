@@ -30,7 +30,11 @@ public class ChaosTestRunner {
     private static final Logger LOG = LogManager.getLogger(ChaosTestRunner.class);
 
     public static void main(String[] args) {
-        String configPath = System.getProperty("chaos.config", "classpath:scenarios/default.yaml");
+        String configPath = System.getProperty("chaos.config",
+                                                "classpath:scenarios/default.yaml");
+        if (!configPath.startsWith("classpath:")) {
+            configPath = "classpath:" + configPath;
+        }
         LOG.info("ChaosTestRunner starting with config: {}", configPath);
 
         ChaosConfig config = YamlConfigLoader.load(configPath);
@@ -40,7 +44,8 @@ public class ChaosTestRunner {
         ReportGenerator.generate(report, config.getReport());
 
         int exitCode = report.isPassed() ? 0 : 1;
-        LOG.info("Chaos test finished. Passed={}, exitCode={}", report.isPassed(), exitCode);
+        LOG.info("Chaos test finished. Passed={}, exitCode={}",
+                 report.isPassed(), exitCode);
         System.exit(exitCode);
     }
 }
