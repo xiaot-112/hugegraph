@@ -1,0 +1,72 @@
+name: "Chaos Test"
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target environment'
+        required: true
+        default: 'local'
+        type: choice
+        options:
+          - local
+          - kubernetes
+      scenario:
+        description: 'Scenario file'
+        required: true
+        default: 'scenarios/cpu-stress.yaml'
+        type: choice
+        options:
+          - scenarios/cpu-stress.yaml
+          - scenarios/network-delay.yaml
+          - scenarios/pod-kill.yaml
+      report_format:
+        description: 'Report format'
+        required: false
+        default: 'html,json'
+        type: string
+
+jobs:
+  chaos-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'zulu'
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+
+      - name: Install stress-ng
+        if: ${{ github.event.inputs.target == 'local' }}
+        run: sudo apt-get update && sudo apt-get install -y stress-ng iproute2
+
+      - name: Build chaos module
+        run: |
+          mvn clean package -pl hugegraph-chaos-test -am \
+              -DskipTests -Dmaven.javadoc.skip=true -ntp
+
+      - name: Run chaos test
+        run: |
+          java -Dchaos.config=${{ github.event.inputs.scenario }} \
+               -Dchaos.target=${{ github.event.inputs.target }} \
+               -Dchaos.report.format=${{ github.event.inputs.report_format }} \
+               -cp "hugegraph-chaos-test/hugegraph-chaos-core/target/classes:\
+               hugegraph-chaos-test/hugegraph-chaos-core/target/dependency/*" \
+               org.apache.hugegraph.chaos.ChaosTestRunner
+
+      - name: Upload chaos report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-report-${{ github.run_id }}
+          path: hugegraph-chaos-test/target/chaos-reports/
+          retention-days: 7

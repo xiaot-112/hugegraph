@@ -1,0 +1,36 @@
+scenario:
+  name: "network-delay"
+  description: "Inject network delay on local loopback and verify recovery"
+
+target:
+  env: local
+  local:
+    clusterConfig: "cluster-test-single.yaml"
+
+steps:
+  - name: "inject-network-delay"
+    type: fault
+    action:
+      type: network_delay
+      target: "localhost"
+      duration: 10s
+      recovery: auto
+      params:
+        latency: 200
+        jitter: 50
+
+  - name: "wait-for-delay"
+    type: wait
+    duration: 5s
+
+  - name: "verify-network-recovered"
+    type: assertion
+    action:
+      type: http
+      url: "http://localhost:8080/graphs"
+      expectedStatus: 200
+
+report:
+  format: [html, json]
+  outputDir: "target/chaos-reports"
+  includeLogs: true
