@@ -59,7 +59,7 @@ jobs:
           java -Dchaos.config=${{ github.event.inputs.scenario }} \
                -Dchaos.target=${{ github.event.inputs.target }} \
                -Dchaos.report.format=${{ github.event.inputs.report_format }} \
-               -jar hugegraph-chaos-test/hugegraph-chaos-core/target/hugegraph-chaos-core-*-shaded.jar
+               -jar hugegraph-chaos-test/hugegraph-chaos-core/target/hugegraph-chaos-core-*.jar
 
       - name: Upload chaos report
         if: always()
