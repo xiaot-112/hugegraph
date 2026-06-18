@@ -28,7 +28,7 @@ on:
 
 jobs:
   chaos-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       TRAVIS_DIR: hugegraph-server/hugegraph-dist/src/assembly/travis
 
@@ -73,7 +73,7 @@ jobs:
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
           SERVER_DIR=hugegraph-server/apache-hugegraph-server-$VERSION
-          bash $TRAVIS_DIR/start-server.sh "$SERVER_DIR" memory 60
+          bash $TRAVIS_DIR/start-server.sh "$SERVER_DIR" memory
 
       - name: Wait for HugeGraph ready
         if: ${{ github.event.inputs.target == 'local' }}
