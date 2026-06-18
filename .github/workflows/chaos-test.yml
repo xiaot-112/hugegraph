@@ -62,37 +62,58 @@ jobs:
       - name: Start HugeGraph PD
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          PD_DIR=$(pwd)/hugegraph-pd/hg-pd-dist/target/classes
-          if [ -d "$PD_DIR" ]; then
-            chmod +x "$PD_DIR/bin/"*.sh
-            pushd "$PD_DIR"
-            . bin/start-hugegraph-pd.sh
-            sleep 10
-            popd
+          PD_ASSEMBLY=$(find $(pwd)/hugegraph-pd -maxdepth 2 -type d -name "apache-hugegraph-pd-*" | head -1)
+          PD_STATIC=$(pwd)/hugegraph-pd/hg-pd-dist/src/assembly/static
+          if [ -n "$PD_ASSEMBLY" ] && [ -d "$PD_ASSEMBLY" ]; then
+            PD_DIR="$PD_ASSEMBLY"
+          elif [ -d "$PD_STATIC" ] && [ -d "$PD_STATIC/bin" ]; then
+            PD_DIR="$PD_STATIC"
           else
-            bash $TRAVIS_DIR/start-pd.sh
+            echo "ERROR: PD distribution not found"
+            exit 1
           fi
+          echo "PD dir: $PD_DIR"
+          chmod +x "$PD_DIR/bin/"*.sh
+          pushd "$PD_DIR"
+          . bin/start-hugegraph-pd.sh
+          sleep 10
+          popd
 
       - name: Start HugeGraph Store
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          STORE_DIR=$(pwd)/hugegraph-store/hg-store-dist/target/classes
-          if [ -d "$STORE_DIR" ]; then
-            chmod +x "$STORE_DIR/bin/"*.sh
-            pushd "$STORE_DIR"
-            . bin/start-hugegraph-store.sh
-            sleep 10
-            popd
+          STORE_ASSEMBLY=$(find $(pwd)/hugegraph-store -maxdepth 2 -type d -name "apache-hugegraph-store-*" | head -1)
+          STORE_STATIC=$(pwd)/hugegraph-store/hg-store-dist/src/assembly/static
+          if [ -n "$STORE_ASSEMBLY" ] && [ -d "$STORE_ASSEMBLY" ]; then
+            STORE_DIR="$STORE_ASSEMBLY"
+          elif [ -d "$STORE_STATIC" ] && [ -d "$STORE_STATIC/bin" ]; then
+            STORE_DIR="$STORE_STATIC"
           else
-            bash $TRAVIS_DIR/start-store.sh
+            echo "ERROR: Store distribution not found"
+            exit 1
           fi
+          echo "Store dir: $STORE_DIR"
+          chmod +x "$STORE_DIR/bin/"*.sh
+          pushd "$STORE_DIR"
+          . bin/start-hugegraph-store.sh
+          sleep 10
+          popd
 
       - name: Start HugeGraph Server
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          SERVER_DIR=$(pwd)/hugegraph-server/hugegraph-dist/target/classes
-          chmod +x "$SERVER_DIR/bin/"*.sh
+          SERVER_ASSEMBLY=$(find $(pwd)/hugegraph-server -maxdepth 2 -type d -name "apache-hugegraph-server-*" | head -1)
+          SERVER_STATIC=$(pwd)/hugegraph-server/hugegraph-dist/src/assembly/static
+          if [ -n "$SERVER_ASSEMBLY" ] && [ -d "$SERVER_ASSEMBLY" ]; then
+            SERVER_DIR="$SERVER_ASSEMBLY"
+          elif [ -d "$SERVER_STATIC" ] && [ -d "$SERVER_STATIC/bin" ]; then
+            SERVER_DIR="$SERVER_STATIC"
+          else
+            echo "ERROR: Server distribution not found"
+            exit 1
+          fi
           echo "Server dir: $SERVER_DIR"
+          chmod +x "$SERVER_DIR/bin/"*.sh
           bash $TRAVIS_DIR/start-server.sh "$SERVER_DIR" memory 60
 
       - name: Wait for HugeGraph ready
@@ -127,7 +148,10 @@ jobs:
       - name: Stop HugeGraph Server
         if: always() && github.event.inputs.target == 'local'
         run: |
-          SERVER_DIR=$(pwd)/hugegraph-server/hugegraph-dist/target/classes
+          SERVER_DIR=$(find $(pwd)/hugegraph-server -maxdepth 2 -type d -name "apache-hugegraph-server-*" | head -1)
+          if [ -z "$SERVER_DIR" ]; then
+            SERVER_DIR=$(pwd)/hugegraph-server/hugegraph-dist/src/assembly/static
+          fi
           if [ -d "$SERVER_DIR" ] && [ -f "$SERVER_DIR/bin/stop-hugegraph.sh" ]; then
             "$SERVER_DIR/bin/stop-hugegraph.sh" || true
           fi
@@ -135,7 +159,10 @@ jobs:
       - name: Stop HugeGraph Store
         if: always() && github.event.inputs.target == 'local'
         run: |
-          STORE_DIR=$(pwd)/hugegraph-store/hg-store-dist/target/classes
+          STORE_DIR=$(find $(pwd)/hugegraph-store -maxdepth 2 -type d -name "apache-hugegraph-store-*" | head -1)
+          if [ -z "$STORE_DIR" ]; then
+            STORE_DIR=$(pwd)/hugegraph-store/hg-store-dist/src/assembly/static
+          fi
           if [ -d "$STORE_DIR" ] && [ -f "$STORE_DIR/bin/stop-hugegraph-store.sh" ]; then
             "$STORE_DIR/bin/stop-hugegraph-store.sh" || true
           fi
@@ -143,7 +170,10 @@ jobs:
       - name: Stop HugeGraph PD
         if: always() && github.event.inputs.target == 'local'
         run: |
-          PD_DIR=$(pwd)/hugegraph-pd/hg-pd-dist/target/classes
+          PD_DIR=$(find $(pwd)/hugegraph-pd -maxdepth 2 -type d -name "apache-hugegraph-pd-*" | head -1)
+          if [ -z "$PD_DIR" ]; then
+            PD_DIR=$(pwd)/hugegraph-pd/hg-pd-dist/src/assembly/static
+          fi
           if [ -d "$PD_DIR" ] && [ -f "$PD_DIR/bin/stop-hugegraph-pd.sh" ]; then
             "$PD_DIR/bin/stop-hugegraph-pd.sh" || true
           fi
