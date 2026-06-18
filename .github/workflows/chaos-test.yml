@@ -78,7 +78,7 @@ jobs:
       - name: Start HugeGraph Server
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          SERVER_DIR=$(find $(pwd)/hugegraph-server/hugegraph-dist/target -maxdepth 1 -type d | grep -v "^$(pwd)/hugegraph-server/hugegraph-dist/target$" | grep -v "classes" | grep -v "test-classes" | grep -v "maven-archiver" | grep -v "generated-sources" | head -1)
+          SERVER_DIR=$(find $(pwd)/hugegraph-server/hugegraph-dist/target -maxdepth 1 -type d -name "apache-hugegraph-server-*" | head -1)
           if [ -z "$SERVER_DIR" ]; then
             echo "ERROR: No server distribution directory found"
             exit 1
@@ -120,7 +120,7 @@ jobs:
       - name: Stop HugeGraph Server
         if: always() && github.event.inputs.target == 'local'
         run: |
-          SERVER_DIR=$(find $(pwd)/hugegraph-server/hugegraph-dist/target -maxdepth 1 -type d | grep -v "^$(pwd)/hugegraph-server/hugegraph-dist/target$" | grep -v "classes" | grep -v "test-classes" | grep -v "maven-archiver" | grep -v "generated-sources" | head -1)
+          SERVER_DIR=$(find $(pwd)/hugegraph-server/hugegraph-dist/target -maxdepth 1 -type d -name "apache-hugegraph-server-*" | head -1)
           if [ -n "$SERVER_DIR" ] && [ -d "$SERVER_DIR" ]; then
             "$SERVER_DIR/bin/stop-hugegraph.sh" || true
           fi
