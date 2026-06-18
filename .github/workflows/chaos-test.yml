@@ -29,6 +29,9 @@ on:
 jobs:
   chaos-test:
     runs-on: ubuntu-latest
+    env:
+      TRAVIS_DIR: hugegraph-server/hugegraph-dist/src/assembly/travis
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,44 +52,48 @@ jobs:
         if: ${{ github.event.inputs.target == 'local' }}
         run: sudo apt-get update && sudo apt-get install -y stress-ng iproute2
 
-      - name: Build project and package distributions
+      - name: Resolve project version
+        run: echo "VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+
+      - name: Build project
         run: |
           mvn clean package -DskipTests -Dmaven.javadoc.skip=true -ntp
-
-      - name: Debug build output
-        if: ${{ github.event.inputs.target == 'local' }}
-        run: |
-          echo "=== Project root ==="
-          ls -la $(pwd)
-          echo "=== Server target ==="
-          ls -la $(pwd)/hugegraph-server/hugegraph-dist/target/ || true
-          echo "=== Store dist ==="
-          ls -la $(pwd)/hugegraph-store/hg-store-dist/target/ || true
-          echo "=== PD dist ==="
-          ls -la $(pwd)/hugegraph-pd/hg-pd-dist/target/ || true
 
       - name: Start HugeGraph PD
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          bash hugegraph-server/hugegraph-dist/src/assembly/travis/start-pd.sh
+          PD_DIR=$(pwd)/hugegraph-pd/hg-pd-dist/target/classes
+          if [ -d "$PD_DIR" ]; then
+            chmod +x "$PD_DIR/bin/"*.sh
+            pushd "$PD_DIR"
+            . bin/start-hugegraph-pd.sh
+            sleep 10
+            popd
+          else
+            bash $TRAVIS_DIR/start-pd.sh
+          fi
 
       - name: Start HugeGraph Store
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          bash hugegraph-server/hugegraph-dist/src/assembly/travis/start-store.sh
+          STORE_DIR=$(pwd)/hugegraph-store/hg-store-dist/target/classes
+          if [ -d "$STORE_DIR" ]; then
+            chmod +x "$STORE_DIR/bin/"*.sh
+            pushd "$STORE_DIR"
+            . bin/start-hugegraph-store.sh
+            sleep 10
+            popd
+          else
+            bash $TRAVIS_DIR/start-store.sh
+          fi
 
       - name: Start HugeGraph Server
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          SERVER_DIR=$(find $(pwd)/hugegraph-server/hugegraph-dist/target -maxdepth 1 -type d -name "apache-hugegraph-server-*" | head -1)
-          if [ -z "$SERVER_DIR" ]; then
-            echo "ERROR: No server distribution directory found"
-            exit 1
-          fi
+          SERVER_DIR=$(pwd)/hugegraph-server/hugegraph-dist/target/classes
+          chmod +x "$SERVER_DIR/bin/"*.sh
           echo "Server dir: $SERVER_DIR"
-          ls -la "$SERVER_DIR/bin/" || true
-          bash hugegraph-server/hugegraph-dist/src/assembly/travis/start-server.sh \
-              "$SERVER_DIR" memory 60
+          bash $TRAVIS_DIR/start-server.sh "$SERVER_DIR" memory 60
 
       - name: Wait for HugeGraph ready
         if: ${{ github.event.inputs.target == 'local' }}
@@ -120,24 +127,24 @@ jobs:
       - name: Stop HugeGraph Server
         if: always() && github.event.inputs.target == 'local'
         run: |
-          SERVER_DIR=$(find $(pwd)/hugegraph-server/hugegraph-dist/target -maxdepth 1 -type d -name "apache-hugegraph-server-*" | head -1)
-          if [ -n "$SERVER_DIR" ] && [ -d "$SERVER_DIR" ]; then
+          SERVER_DIR=$(pwd)/hugegraph-server/hugegraph-dist/target/classes
+          if [ -d "$SERVER_DIR" ] && [ -f "$SERVER_DIR/bin/stop-hugegraph.sh" ]; then
             "$SERVER_DIR/bin/stop-hugegraph.sh" || true
           fi
 
       - name: Stop HugeGraph Store
         if: always() && github.event.inputs.target == 'local'
         run: |
-          STORE_DIR=$(find $(pwd)/hugegraph-store -maxdepth 1 -type d -name "apache-hugegraph-store-*" | head -1)
-          if [ -n "$STORE_DIR" ] && [ -d "$STORE_DIR" ]; then
+          STORE_DIR=$(pwd)/hugegraph-store/hg-store-dist/target/classes
+          if [ -d "$STORE_DIR" ] && [ -f "$STORE_DIR/bin/stop-hugegraph-store.sh" ]; then
             "$STORE_DIR/bin/stop-hugegraph-store.sh" || true
           fi
 
       - name: Stop HugeGraph PD
         if: always() && github.event.inputs.target == 'local'
         run: |
-          PD_DIR=$(find $(pwd)/hugegraph-pd -maxdepth 1 -type d -name "apache-hugegraph-pd-*" | head -1)
-          if [ -n "$PD_DIR" ] && [ -d "$PD_DIR" ]; then
+          PD_DIR=$(pwd)/hugegraph-pd/hg-pd-dist/target/classes
+          if [ -d "$PD_DIR" ] && [ -f "$PD_DIR/bin/stop-hugegraph-pd.sh" ]; then
             "$PD_DIR/bin/stop-hugegraph-pd.sh" || true
           fi
 
