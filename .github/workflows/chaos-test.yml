@@ -66,7 +66,7 @@ jobs:
       - name: Start HugeGraph Server
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          SERVER_DIR=$(pwd)/hugegraph-server/hugegraph-dist/target/apache-hugegraph-server-*
+          SERVER_DIR=$(ls -d $(pwd)/hugegraph-server/hugegraph-dist/target/apache-hugegraph-server-*)
           bash hugegraph-server/hugegraph-dist/src/assembly/travis/start-server.sh \
               "$SERVER_DIR" memory 60
 
@@ -102,7 +102,7 @@ jobs:
       - name: Stop HugeGraph Server
         if: always() && github.event.inputs.target == 'local'
         run: |
-          SERVER_DIR=$(pwd)/hugegraph-server/hugegraph-dist/target/apache-hugegraph-server-*
+          SERVER_DIR=$(ls -d $(pwd)/hugegraph-server/hugegraph-dist/target/apache-hugegraph-server-*)
           if [ -d "$SERVER_DIR" ]; then
             "$SERVER_DIR/bin/stop-hugegraph.sh" || true
           fi
@@ -110,7 +110,7 @@ jobs:
       - name: Stop HugeGraph Store
         if: always() && github.event.inputs.target == 'local'
         run: |
-          STORE_DIR=$(pwd)/hugegraph-store/apache-hugegraph-store-*
+          STORE_DIR=$(ls -d $(pwd)/hugegraph-store/apache-hugegraph-store-*)
           if [ -d "$STORE_DIR" ]; then
             "$STORE_DIR/bin/stop-hugegraph-store.sh" || true
           fi
@@ -118,7 +118,7 @@ jobs:
       - name: Stop HugeGraph PD
         if: always() && github.event.inputs.target == 'local'
         run: |
-          PD_DIR=$(pwd)/hugegraph-pd/apache-hugegraph-pd-*
+          PD_DIR=$(ls -d $(pwd)/hugegraph-pd/apache-hugegraph-pd-*)
           if [ -d "$PD_DIR" ]; then
             "$PD_DIR/bin/stop-hugegraph-pd.sh" || true
           fi
