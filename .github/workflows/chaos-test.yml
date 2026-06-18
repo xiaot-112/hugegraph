@@ -28,9 +28,10 @@ on:
 
 jobs:
   chaos-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     env:
       TRAVIS_DIR: hugegraph-server/hugegraph-dist/src/assembly/travis
+      BACKEND: hstore
 
     steps:
       - name: Checkout
@@ -59,21 +60,16 @@ jobs:
         run: |
           mvn clean package -DskipTests -Dmaven.javadoc.skip=true -ntp
 
-      - name: Start HugeGraph PD
+      - name: Install backend (PD + Store)
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          bash $TRAVIS_DIR/start-pd.sh
-
-      - name: Start HugeGraph Store
-        if: ${{ github.event.inputs.target == 'local' }}
-        run: |
-          bash $TRAVIS_DIR/start-store.sh
+          $TRAVIS_DIR/install-backend.sh $BACKEND
 
       - name: Start HugeGraph Server
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
           SERVER_DIR=hugegraph-server/apache-hugegraph-server-$VERSION
-          bash $TRAVIS_DIR/start-server.sh "$SERVER_DIR" memory
+          $TRAVIS_DIR/start-server.sh $SERVER_DIR $BACKEND || (cat $SERVER_DIR/logs/hugegraph-server.log && exit 1)
 
       - name: Wait for HugeGraph ready
         if: ${{ github.event.inputs.target == 'local' }}
@@ -89,6 +85,8 @@ jobs:
             sleep 2
           done
           echo "HugeGraph did not become ready in time"
+          SERVER_DIR=hugegraph-server/apache-hugegraph-server-$VERSION
+          cat $SERVER_DIR/logs/hugegraph-server.log || true
           exit 1
 
       - name: Build chaos module
@@ -103,7 +101,6 @@ jobs:
                -Dchaos.target=${{ github.event.inputs.target }} \
                -Dchaos.report.format=${{ github.event.inputs.report_format }} \
                -jar hugegraph-chaos-test/hugegraph-chaos-core/target/hugegraph-chaos-core-*.jar
-          echo "=== Chaos test exit code: $? ==="
 
       - name: Show chaos report
         if: always()
@@ -126,19 +123,17 @@ jobs:
         if: always() && github.event.inputs.target == 'local'
         run: |
           SERVER_DIR=hugegraph-server/apache-hugegraph-server-$VERSION
-          if [ -f "$SERVER_DIR/bin/pid" ]; then
-            $TRAVIS_DIR/stop-server.sh "$SERVER_DIR" || true
-          fi
+          $TRAVIS_DIR/stop-server.sh $SERVER_DIR || true
 
       - name: Stop HugeGraph Store
         if: always() && github.event.inputs.target == 'local'
         run: |
-          bash $TRAVIS_DIR/stop-store.sh || true
+          $TRAVIS_DIR/stop-store.sh || true
 
       - name: Stop HugeGraph PD
         if: always() && github.event.inputs.target == 'local'
         run: |
-          bash $TRAVIS_DIR/stop-pd.sh || true
+          $TRAVIS_DIR/stop-pd.sh || true
 
       - name: Upload chaos report
         if: always()
