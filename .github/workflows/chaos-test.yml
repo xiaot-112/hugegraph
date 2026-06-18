@@ -49,9 +49,46 @@ jobs:
         if: ${{ github.event.inputs.target == 'local' }}
         run: sudo apt-get update && sudo apt-get install -y stress-ng iproute2
 
+      - name: Build project and package distributions
+        run: |
+          mvn clean package -DskipTests -Dmaven.javadoc.skip=true -ntp
+
+      - name: Start HugeGraph PD
+        if: ${{ github.event.inputs.target == 'local' }}
+        run: |
+          bash hugegraph-server/hugegraph-dist/src/assembly/travis/start-pd.sh
+
+      - name: Start HugeGraph Store
+        if: ${{ github.event.inputs.target == 'local' }}
+        run: |
+          bash hugegraph-server/hugegraph-dist/src/assembly/travis/start-store.sh
+
+      - name: Start HugeGraph Server
+        if: ${{ github.event.inputs.target == 'local' }}
+        run: |
+          SERVER_DIR=$(pwd)/hugegraph-server/hugegraph-dist/target/apache-hugegraph-server-*
+          bash hugegraph-server/hugegraph-dist/src/assembly/travis/start-server.sh \
+              "$SERVER_DIR" memory 60
+
+      - name: Wait for HugeGraph ready
+        if: ${{ github.event.inputs.target == 'local' }}
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              http://localhost:8080/graphs || echo "000")
+            if [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ]; then
+              echo "HugeGraph is ready (HTTP $STATUS)"
+              exit 0
+            fi
+            echo "Waiting for HugeGraph... ($i/30)"
+            sleep 2
+          done
+          echo "HugeGraph did not become ready in time"
+          exit 1
+
       - name: Build chaos module
         run: |
-          mvn clean package -pl hugegraph-chaos-test/hugegraph-chaos-core -am \
+          mvn package -pl hugegraph-chaos-test/hugegraph-chaos-core -am \
               -DskipTests -Dmaven.javadoc.skip=true -ntp
 
       - name: Run chaos test
@@ -61,6 +98,30 @@ jobs:
                -Dchaos.target=${{ github.event.inputs.target }} \
                -Dchaos.report.format=${{ github.event.inputs.report_format }} \
                -jar hugegraph-chaos-test/hugegraph-chaos-core/target/hugegraph-chaos-core-*.jar
+
+      - name: Stop HugeGraph Server
+        if: always() && github.event.inputs.target == 'local'
+        run: |
+          SERVER_DIR=$(pwd)/hugegraph-server/hugegraph-dist/target/apache-hugegraph-server-*
+          if [ -d "$SERVER_DIR" ]; then
+            "$SERVER_DIR/bin/stop-hugegraph.sh" || true
+          fi
+
+      - name: Stop HugeGraph Store
+        if: always() && github.event.inputs.target == 'local'
+        run: |
+          STORE_DIR=$(pwd)/hugegraph-store/apache-hugegraph-store-*
+          if [ -d "$STORE_DIR" ]; then
+            "$STORE_DIR/bin/stop-hugegraph-store.sh" || true
+          fi
+
+      - name: Stop HugeGraph PD
+        if: always() && github.event.inputs.target == 'local'
+        run: |
+          PD_DIR=$(pwd)/hugegraph-pd/apache-hugegraph-pd-*
+          if [ -d "$PD_DIR" ]; then
+            "$PD_DIR/bin/stop-hugegraph-pd.sh" || true
+          fi
 
       - name: Upload chaos report
         if: always()
