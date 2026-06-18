@@ -5,7 +5,7 @@ scenario:
 target:
   env: LOCAL
   local:
-    clusterConfig: "cluster-test-single.yaml"
+    clusterConfig: "cluster-test-simple.yaml"
 
 steps:
   - name: "inject-cpu-stress"

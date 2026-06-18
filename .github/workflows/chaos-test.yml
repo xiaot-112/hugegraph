@@ -103,6 +103,16 @@ jobs:
                -Dchaos.target=${{ github.event.inputs.target }} \
                -Dchaos.report.format=${{ github.event.inputs.report_format }} \
                -jar hugegraph-chaos-test/hugegraph-chaos-core/target/hugegraph-chaos-core-*.jar
+          echo "=== Chaos test exit code: $? ==="
+
+      - name: Show chaos report
+        if: always()
+        run: |
+          echo "=== JSON Report ==="
+          cat target/chaos-reports/report.json 2>/dev/null || echo "No JSON report found"
+          echo ""
+          echo "=== Report files ==="
+          find . -name "report.*" -path "*/chaos-reports/*" 2>/dev/null
 
       - name: Show server log on failure
         if: failure()
@@ -135,5 +145,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: chaos-report-${{ github.run_id }}
-          path: hugegraph-chaos-test/target/chaos-reports/
+          path: |
+            target/chaos-reports/
+            hugegraph-chaos-test/target/chaos-reports/
           retention-days: 7
+          if-no-files-found: ignore

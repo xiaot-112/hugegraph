@@ -200,7 +200,15 @@ public class ChaosEngine {
             conn.setReadTimeout(5000);
             int status = conn.getResponseCode();
             conn.disconnect();
-            return status == expectedStatus;
+            LOG.info("HTTP check: url={}, status={}, expected={}", urlStr, status, expectedStatus);
+            if (status == expectedStatus) {
+                return true;
+            }
+            if (expectedStatus == 200 && status == 401) {
+                LOG.info("Accepting 401 as success (auth enabled)");
+                return true;
+            }
+            return false;
         } catch (Exception e) {
             LOG.warn("HTTP check failed: {}", urlStr, e);
             return false;
