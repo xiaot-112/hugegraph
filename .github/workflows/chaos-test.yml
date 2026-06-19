@@ -25,6 +25,21 @@ on:
         required: false
         default: 'html,json'
         type: string
+      pd_count:
+        description: 'Number of PD nodes'
+        required: false
+        default: '3'
+        type: string
+      store_count:
+        description: 'Number of Store nodes'
+        required: false
+        default: '3'
+        type: string
+      server_count:
+        description: 'Number of Server nodes'
+        required: false
+        default: '3'
+        type: string
 
 jobs:
   chaos-test:
@@ -53,46 +68,48 @@ jobs:
         if: ${{ github.event.inputs.target == 'local' }}
         run: sudo apt-get update && sudo apt-get install -y stress-ng iproute2
 
-      - name: Resolve project version
-        run: echo "VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
-
       - name: Build project
         run: |
           mvn clean package -DskipTests -Dmaven.javadoc.skip=true -ntp
 
-      - name: Install backend (PD + Store)
+      - name: Start HugeGraph cluster via ClusterLauncher
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          $TRAVIS_DIR/install-backend.sh $BACKEND
+          CT_JAR=$(find hugegraph-cluster-test -name "hg-ct-*.jar" -path "*/lib/*" | head -1)
+          if [ -z "$CT_JAR" ]; then
+            CT_JAR=$(find hugegraph-cluster-test -name "hg-ct-*.jar" | head -1)
+          fi
+          if [ -z "$CT_JAR" ]; then
+            echo "ERROR: ClusterLauncher jar not found"
+            find hugegraph-cluster-test -name "*.jar" | head -20
+            exit 1
+          fi
+          echo "Using ClusterLauncher: $CT_JAR"
+          java -jar "$CT_JAR" \
+            --pd ${{ github.event.inputs.pd_count }} \
+            --store ${{ github.event.inputs.store_count }} \
+            --server ${{ github.event.inputs.server_count }} \
+            --timeout 300000 &
+          CLUSTER_PID=$!
+          echo "CLUSTER_PID=$CLUSTER_PID" >> $GITHUB_ENV
+          echo "Cluster starting with PID=$CLUSTER_PID"
 
-      - name: Start HugeGraph Server
+      - name: Wait for HugeGraph cluster ready
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          SERVER_DIR=hugegraph-server/apache-hugegraph-server-$VERSION
-          $TRAVIS_DIR/start-server.sh $SERVER_DIR $BACKEND || (cat $SERVER_DIR/logs/hugegraph-server.log && exit 1)
-
-      - name: Wait for HugeGraph ready
-        if: ${{ github.event.inputs.target == 'local' }}
-        run: |
-          for i in $(seq 1 30); do
+          for i in $(seq 1 60); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-              http://localhost:8080/graphs || echo "000")
+              http://localhost:8080/graphs 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ]; then
-              echo "HugeGraph is ready (HTTP $STATUS)"
+              echo "HugeGraph cluster is ready (HTTP $STATUS)"
               exit 0
             fi
-            echo "Waiting for HugeGraph... ($i/30)"
-            sleep 2
+            echo "Waiting for cluster... ($i/60)"
+            sleep 5
           done
-          echo "HugeGraph did not become ready in time"
-          SERVER_DIR=hugegraph-server/apache-hugegraph-server-$VERSION
-          cat $SERVER_DIR/logs/hugegraph-server.log || true
+          echo "Cluster did not become ready in time"
+          kill $CLUSTER_PID 2>/dev/null || true
           exit 1
-
-      - name: Build chaos module
-        run: |
-          mvn package -pl hugegraph-chaos-test/hugegraph-chaos-core -am \
-              -DskipTests -Dmaven.javadoc.skip=true -ntp
 
       - name: Run chaos test
         run: |
@@ -111,29 +128,12 @@ jobs:
           echo "=== Report files ==="
           find . -name "report.*" -path "*/chaos-reports/*" 2>/dev/null
 
-      - name: Show server log on failure
-        if: failure()
+      - name: Stop HugeGraph cluster
+        if: always() && github.event.inputs.target == 'local'
         run: |
-          SERVER_DIR=hugegraph-server/apache-hugegraph-server-$VERSION
-          if [ -f "$SERVER_DIR/logs/hugegraph-server.log" ]; then
-            tail -n 200 "$SERVER_DIR/logs/hugegraph-server.log"
+          if [ -n "$CLUSTER_PID" ]; then
+            kill $CLUSTER_PID 2>/dev/null || true
           fi
-
-      - name: Stop HugeGraph Server
-        if: always() && github.event.inputs.target == 'local'
-        run: |
-          SERVER_DIR=hugegraph-server/apache-hugegraph-server-$VERSION
-          $TRAVIS_DIR/stop-server.sh $SERVER_DIR || true
-
-      - name: Stop HugeGraph Store
-        if: always() && github.event.inputs.target == 'local'
-        run: |
-          $TRAVIS_DIR/stop-store.sh || true
-
-      - name: Stop HugeGraph PD
-        if: always() && github.event.inputs.target == 'local'
-        run: |
-          $TRAVIS_DIR/stop-pd.sh || true
 
       - name: Upload chaos report
         if: always()

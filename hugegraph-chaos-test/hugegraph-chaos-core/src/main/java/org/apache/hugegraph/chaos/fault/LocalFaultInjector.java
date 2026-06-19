@@ -90,7 +90,7 @@ public class LocalFaultInjector implements FaultInjector {
             }
         }
         try {
-            executeCommand("tc qdisc del dev lo root 2>/dev/null || true");
+            executeCommand("sudo tc qdisc del dev lo root 2>/dev/null || true");
         } catch (Exception e) {
             LOG.warn("Failed to clean up network rules", e);
         }
@@ -122,7 +122,7 @@ public class LocalFaultInjector implements FaultInjector {
         int jitter = jitterObj != null ? parseMillis(jitterObj) : 0;
         LOG.info("Injecting network delay: {}ms +/- {}ms", latency, jitter);
         ensureTcQdiscClean();
-        String cmd = String.format("tc qdisc add dev lo root netem delay %dms %dms",
+        String cmd = String.format("sudo tc qdisc add dev lo root netem delay %dms %dms",
                                    latency, jitter);
         executeCommand(cmd);
     }
@@ -132,13 +132,13 @@ public class LocalFaultInjector implements FaultInjector {
         double loss = lossObj instanceof Number ? ((Number) lossObj).doubleValue() : 10.0;
         LOG.info("Injecting network loss: {}%", loss);
         ensureTcQdiscClean();
-        String cmd = String.format("tc qdisc add dev lo root netem loss %.1f%%", loss);
+        String cmd = String.format("sudo tc qdisc add dev lo root netem loss %.1f%%", loss);
         executeCommand(cmd);
     }
 
     private void ensureTcQdiscClean() {
         try {
-            executeCommand("tc qdisc del dev lo root 2>/dev/null || true");
+            executeCommand("sudo tc qdisc del dev lo root 2>/dev/null || true");
         } catch (Exception e) {
             LOG.debug("No existing tc qdisc to clean on lo");
         }
@@ -146,7 +146,7 @@ public class LocalFaultInjector implements FaultInjector {
 
     private void recoverNetwork(Step.StepAction action) throws Exception {
         LOG.info("Recovering network rules");
-        executeCommand("tc qdisc del dev lo root");
+        executeCommand("sudo tc qdisc del dev lo root");
     }
 
     private void injectCpuStress(Step.StepAction action) throws Exception {
