@@ -46,7 +46,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TRAVIS_DIR: hugegraph-server/hugegraph-dist/src/assembly/travis
-      BACKEND: hstore
 
     steps:
       - name: Checkout
@@ -72,27 +71,13 @@ jobs:
         run: |
           mvn clean package -DskipTests -Dmaven.javadoc.skip=true -ntp
 
-      - name: Start HugeGraph cluster via ClusterLauncher
+      - name: Start HugeGraph cluster
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          CT_JAR=$(find hugegraph-cluster-test -name "hg-ct-*.jar" -path "*/lib/*" | head -1)
-          if [ -z "$CT_JAR" ]; then
-            CT_JAR=$(find hugegraph-cluster-test -name "hg-ct-*.jar" | head -1)
-          fi
-          if [ -z "$CT_JAR" ]; then
-            echo "ERROR: ClusterLauncher jar not found"
-            find hugegraph-cluster-test -name "*.jar" | head -20
-            exit 1
-          fi
-          echo "Using ClusterLauncher: $CT_JAR"
-          java -jar "$CT_JAR" \
-            --pd ${{ github.event.inputs.pd_count }} \
-            --store ${{ github.event.inputs.store_count }} \
-            --server ${{ github.event.inputs.server_count }} \
-            --timeout 300000 &
-          CLUSTER_PID=$!
-          echo "CLUSTER_PID=$CLUSTER_PID" >> $GITHUB_ENV
-          echo "Cluster starting with PID=$CLUSTER_PID"
+          bash hugegraph-chaos-test/scripts/start-cluster.sh \
+            ${{ github.event.inputs.pd_count }} \
+            ${{ github.event.inputs.store_count }} \
+            ${{ github.event.inputs.server_count }}
 
       - name: Wait for HugeGraph cluster ready
         if: ${{ github.event.inputs.target == 'local' }}
@@ -108,7 +93,6 @@ jobs:
             sleep 5
           done
           echo "Cluster did not become ready in time"
-          kill $CLUSTER_PID 2>/dev/null || true
           exit 1
 
       - name: Run chaos test
@@ -131,9 +115,7 @@ jobs:
       - name: Stop HugeGraph cluster
         if: always() && github.event.inputs.target == 'local'
         run: |
-          if [ -n "$CLUSTER_PID" ]; then
-            kill $CLUSTER_PID 2>/dev/null || true
-          fi
+          bash hugegraph-chaos-test/scripts/stop-cluster.sh || true
 
       - name: Upload chaos report
         if: always()
