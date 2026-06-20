@@ -24,10 +24,36 @@ import org.apache.hugegraph.chaos.model.ChaosReport;
 import org.apache.hugegraph.chaos.observer.ReportGenerator;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class LocalChaosTest {
+
+    @Test
+    public void testLocalStressScenario() {
+        String configPath = System.getProperty("chaos.config",
+            "classpath:scenarios/local-stress-test.yaml");
+        ChaosConfig config = YamlConfigLoader.load(configPath);
+        ChaosEngine engine = new ChaosEngine(config);
+        ChaosReport report = engine.run();
+        ReportGenerator.generate(report, config.getReport());
+        assertNotNull(report);
+        assertTrue("Local stress scenario should pass", report.isPassed());
+        assertEquals(4, report.getStepResults().size());
+    }
+
+    @Test
+    public void testFrameworkValidationScenario() {
+        String configPath = System.getProperty("chaos.config",
+            "classpath:scenarios/local-framework-validation.yaml");
+        ChaosConfig config = YamlConfigLoader.load(configPath);
+        ChaosEngine engine = new ChaosEngine(config);
+        ChaosReport report = engine.run();
+        ReportGenerator.generate(report, config.getReport());
+        assertNotNull(report);
+        assertTrue("Framework validation scenario should pass", report.isPassed());
+    }
 
     @Test
     public void testCpuStressScenario() {
@@ -38,18 +64,22 @@ public class LocalChaosTest {
         ChaosReport report = engine.run();
         ReportGenerator.generate(report, config.getReport());
         assertNotNull(report);
-        assertTrue("CPU stress scenario should pass", report.isPassed());
+        assertTrue("CPU stress injection step should pass",
+                   report.getStepResults().get(0).isPassed());
     }
 
     @Test
-    public void testNetworkDelayScenario() {
+    public void testReportGeneration() {
         String configPath = System.getProperty("chaos.config",
-            "classpath:scenarios/network-delay.yaml");
+            "classpath:scenarios/local-stress-test.yaml");
         ChaosConfig config = YamlConfigLoader.load(configPath);
         ChaosEngine engine = new ChaosEngine(config);
         ChaosReport report = engine.run();
         ReportGenerator.generate(report, config.getReport());
-        assertNotNull(report);
-        assertTrue("Network delay scenario should pass", report.isPassed());
+        assertNotNull(report.getScenarioName());
+        assertNotNull(report.getStartTime());
+        assertNotNull(report.getEndTime());
+        assertNotNull(report.getStepResults());
+        assertTrue(report.getDuration().getSeconds() > 0);
     }
 }

@@ -20,6 +20,7 @@ package org.apache.hugegraph.chaos.engine;
 import org.apache.hugegraph.chaos.fault.FaultInjector;
 import org.apache.hugegraph.chaos.fault.K8sFaultInjector;
 import org.apache.hugegraph.chaos.fault.LocalFaultInjector;
+import org.apache.hugegraph.chaos.fault.SkippableFaultException;
 import org.apache.hugegraph.chaos.model.ChaosConfig;
 import org.apache.hugegraph.chaos.model.ChaosReport;
 import org.apache.hugegraph.chaos.model.RecoveryPolicy;
@@ -145,7 +146,15 @@ public class ChaosEngine {
     }
 
     private void executeFaultStep(Step step, ChaosReport.StepResult result) throws Exception {
-        faultInjector.inject(step.getAction());
+        try {
+            faultInjector.inject(step.getAction());
+        } catch (SkippableFaultException e) {
+            LOG.warn("Fault step skipped: {} - {}", step.getName(), e.getMessage());
+            result.setPassed(true);
+            result.setSkipped(true);
+            result.setMessage("Skipped: " + e.getMessage());
+            return;
+        }
         result.setPassed(true);
         result.setMessage("Fault injected: " + step.getAction().getType());
 

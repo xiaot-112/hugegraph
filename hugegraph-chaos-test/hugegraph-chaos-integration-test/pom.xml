@@ -45,11 +45,6 @@
             <version>${revision}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.hugegraph</groupId>
-            <artifactId>hugegraph-clustertest-minicluster</artifactId>
-            <version>${revision}</version>
-        </dependency>
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.13.2</version>

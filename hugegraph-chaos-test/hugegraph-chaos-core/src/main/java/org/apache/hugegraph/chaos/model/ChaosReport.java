@@ -99,6 +99,7 @@ public class ChaosReport {
         private String stepName;
         private StepType stepType;
         private boolean passed;
+        private boolean skipped;
         private LocalDateTime startTime;
         private LocalDateTime endTime;
         private String message;
@@ -126,6 +127,14 @@ public class ChaosReport {
 
         public void setPassed(boolean passed) {
             this.passed = passed;
+        }
+
+        public boolean isSkipped() {
+            return skipped;
+        }
+
+        public void setSkipped(boolean skipped) {
+            this.skipped = skipped;
         }
 
         public LocalDateTime getStartTime() {

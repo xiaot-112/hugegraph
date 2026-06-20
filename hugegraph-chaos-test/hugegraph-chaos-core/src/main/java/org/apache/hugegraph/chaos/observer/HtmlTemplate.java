@@ -62,6 +62,13 @@ public final class HtmlTemplate {
                       report.isPassed()
                       ? "<span class=\"pass\">PASSED</span>"
                       : "<span class=\"fail\">FAILED</span>"));
+        long skippedCount = report.getStepResults().stream()
+                                  .filter(ChaosReport.StepResult::isSkipped).count();
+        if (skippedCount > 0) {
+            sb.append(row("Skipped Steps",
+                          "<span class=\"skip\">" + skippedCount + " step(s) skipped " +
+                          "(environment limitations)</span>"));
+        }
         if (report.getStartTime() != null) {
             sb.append(row("Start", report.getStartTime().format(FMT)));
         }
@@ -102,7 +109,9 @@ public final class HtmlTemplate {
             sb.append("<td>").append(escape(result.getStepName())).append("</td>");
             sb.append("<td>").append(result.getStepType()).append("</td>");
             sb.append("<td>")
-              .append(result.isPassed()
+              .append(result.isSkipped()
+                      ? "<span class=\"skip\">SKIPPED</span>"
+                      : result.isPassed()
                       ? "<span class=\"pass\">PASSED</span>"
                       : "<span class=\"fail\">FAILED</span>")
               .append("</td>");
@@ -145,6 +154,7 @@ public final class HtmlTemplate {
             + "thead th { background: #f0f0f0; width: auto; }"
             + ".pass { color: #2e7d32; font-weight: 600; }"
             + ".fail { color: #c62828; font-weight: 600; }"
+            + ".skip { color: #f57f17; font-weight: 600; }"
             + ".error { margin-top: 16px; padding: 12px; background: #ffebee;"
             + "border-radius: 4px; }"
             + ".error pre { margin: 0; white-space: pre-wrap; }";

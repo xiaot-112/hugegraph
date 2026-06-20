@@ -33,6 +33,7 @@ public class LocalFaultInjector implements FaultInjector {
 
     private static final Logger LOG = LogManager.getLogger(LocalFaultInjector.class);
     private final Map<String, Process> activeProcesses = new ConcurrentHashMap<>();
+    private Boolean sudoAvailable = null;
 
     @Override
     public void inject(Step.StepAction action) throws Exception {
@@ -90,10 +91,29 @@ public class LocalFaultInjector implements FaultInjector {
             }
         }
         try {
-            executeCommand("sudo tc qdisc del dev lo root 2>/dev/null || true");
+            executeCommand(tcPrefix() + "tc qdisc del dev lo root 2>/dev/null || true");
         } catch (Exception e) {
             LOG.warn("Failed to clean up network rules", e);
         }
+    }
+
+    private boolean isSudoAvailable() {
+        if (sudoAvailable != null) {
+            return sudoAvailable;
+        }
+        try {
+            Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", "sudo -n true 2>/dev/null"});
+            int exitCode = process.waitFor();
+            sudoAvailable = exitCode == 0;
+        } catch (Exception e) {
+            sudoAvailable = false;
+        }
+        LOG.info("Sudo available: {}", sudoAvailable);
+        return sudoAvailable;
+    }
+
+    private String tcPrefix() {
+        return isSudoAvailable() ? "sudo " : "";
     }
 
     private void injectProcessKill(Step.StepAction action) {
@@ -115,30 +135,44 @@ public class LocalFaultInjector implements FaultInjector {
         LOG.info("Process recovery for: {} (auto-restart expected)", action.getTarget());
     }
 
-    private void injectNetworkDelay(Step.StepAction action) throws Exception {
+    private void injectNetworkDelay(Step.StepAction action) throws SkippableFaultException, Exception {
         Object latencyObj = action.getParams().get("latency");
         Object jitterObj = action.getParams().get("jitter");
         int latency = parseMillis(latencyObj);
         int jitter = jitterObj != null ? parseMillis(jitterObj) : 0;
         LOG.info("Injecting network delay: {}ms +/- {}ms", latency, jitter);
+        ensureTcAvailable();
         ensureTcQdiscClean();
-        String cmd = String.format("sudo tc qdisc add dev lo root netem delay %dms %dms",
-                                   latency, jitter);
+        String cmd = String.format("%stc qdisc add dev lo root netem delay %dms %dms",
+                                   tcPrefix(), latency, jitter);
         executeCommand(cmd);
     }
 
-    private void injectNetworkLoss(Step.StepAction action) throws Exception {
+    private void injectNetworkLoss(Step.StepAction action) throws SkippableFaultException, Exception {
         Object lossObj = action.getParams().get("loss");
         double loss = lossObj instanceof Number ? ((Number) lossObj).doubleValue() : 10.0;
         LOG.info("Injecting network loss: {}%", loss);
+        ensureTcAvailable();
         ensureTcQdiscClean();
-        String cmd = String.format("sudo tc qdisc add dev lo root netem loss %.1f%%", loss);
+        String cmd = String.format("%stc qdisc add dev lo root netem loss %.1f%%",
+                                   tcPrefix(), loss);
         executeCommand(cmd);
+    }
+
+    private void ensureTcAvailable() throws SkippableFaultException {
+        try {
+            executeCommand("which tc 2>/dev/null");
+        } catch (Exception e) {
+            throw new SkippableFaultException(
+                "Network fault injection requires 'tc' (iproute2), " +
+                "not available on this platform. " +
+                "Install with: apt-get install iproute2 (Linux)");
+        }
     }
 
     private void ensureTcQdiscClean() {
         try {
-            executeCommand("sudo tc qdisc del dev lo root 2>/dev/null || true");
+            executeCommand(tcPrefix() + "tc qdisc del dev lo root 2>/dev/null || true");
         } catch (Exception e) {
             LOG.debug("No existing tc qdisc to clean on lo");
         }
@@ -146,7 +180,7 @@ public class LocalFaultInjector implements FaultInjector {
 
     private void recoverNetwork(Step.StepAction action) throws Exception {
         LOG.info("Recovering network rules");
-        executeCommand("sudo tc qdisc del dev lo root");
+        executeCommand(tcPrefix() + "tc qdisc del dev lo root");
     }
 
     private void injectCpuStress(Step.StepAction action) throws Exception {
@@ -164,13 +198,21 @@ public class LocalFaultInjector implements FaultInjector {
 
     private void injectMemoryStress(Step.StepAction action) throws Exception {
         Object percentObj = action.getParams().get("percent");
-        int percent = percentObj instanceof Number ? ((Number) percentObj).intValue() : 50;
+        Object sizeObj = action.getParams().get("size");
         long durationSec = action.getDuration() != null
                            ? parseDuration(action.getDuration()).getSeconds()
                            : 60;
-        LOG.info("Injecting memory stress: {}%% for {}s", percent, durationSec);
-        String cmd = String.format("stress-ng --vm 1 --vm-bytes %d%% --timeout %ds",
-                                   percent, durationSec);
+        String vmBytes;
+        if (sizeObj != null) {
+            vmBytes = sizeObj.toString();
+        } else if (percentObj != null) {
+            vmBytes = ((Number) percentObj).intValue() + "%";
+        } else {
+            vmBytes = "50%";
+        }
+        LOG.info("Injecting memory stress: {} for {}s", vmBytes, durationSec);
+        String cmd = String.format("stress-ng --vm 1 --vm-bytes %s --timeout %ds",
+                                   vmBytes, durationSec);
         Process process = executeCommandAsync(cmd);
         activeProcesses.put(action.getTarget() + "-memory", process);
     }

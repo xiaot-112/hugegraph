@@ -100,6 +100,13 @@ public class ReportGenerator {
             writer.append("- **Status**: ")
                   .append(report.isPassed() ? "PASSED" : "FAILED")
                   .append("\n");
+            long skippedCount = report.getStepResults().stream()
+                                      .filter(ChaosReport.StepResult::isSkipped).count();
+            if (skippedCount > 0) {
+                writer.append("- **Skipped**: ")
+                      .append(String.valueOf(skippedCount))
+                      .append(" step(s) skipped (environment limitations)\n");
+            }
             if (report.getStartTime() != null) {
                 writer.append("- **Start**: ")
                       .append(report.getStartTime().format(FMT))
@@ -127,7 +134,8 @@ public class ReportGenerator {
                 writer.append("- **Type**: ").append(String.valueOf(result.getStepType()))
                       .append("\n");
                 writer.append("- **Status**: ")
-                      .append(result.isPassed() ? "PASSED" : "FAILED")
+                      .append(result.isSkipped() ? "SKIPPED"
+                             : result.isPassed() ? "PASSED" : "FAILED")
                       .append("\n");
                 writer.append("- **Duration**: ")
                       .append(String.valueOf(result.getDuration().getSeconds()))

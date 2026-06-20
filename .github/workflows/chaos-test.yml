@@ -14,14 +14,16 @@ on:
       scenario:
         description: 'Scenario file'
         required: true
-        default: 'scenarios/cpu-stress.yaml'
+        default: 'scenarios/local-stress-test.yaml'
         type: choice
         options:
+          - scenarios/local-stress-test.yaml
+          - scenarios/local-framework-validation.yaml
           - scenarios/cpu-stress.yaml
           - scenarios/network-delay.yaml
           - scenarios/pod-kill.yaml
       report_format:
-        description: 'Report format'
+        description: 'Report format (comma-separated: html,json,markdown)'
         required: false
         default: 'html,json'
         type: string
@@ -43,8 +45,9 @@ on:
 
 jobs:
   chaos-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
+      USE_STAGE: 'false'
       TRAVIS_DIR: hugegraph-server/hugegraph-dist/src/assembly/travis
 
     steps:
@@ -57,19 +60,37 @@ jobs:
           java-version: '11'
           distribution: 'zulu'
 
-      - name: Cache Maven
+      - name: Cache Maven packages
         uses: actions/cache@v4
         with:
-          path: ~/.m2
+          path: ~/.m2/repository
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
 
-      - name: Install stress-ng
+      - name: Use staged maven repo settings
+        if: ${{ env.USE_STAGE == 'true' }}
+        run: |
+          cp $HOME/.m2/settings.xml /tmp/settings.xml || true
+          mv -vf .github/configs/settings.xml $HOME/.m2/settings.xml
+
+      - name: Install stress-ng and iproute2
         if: ${{ github.event.inputs.target == 'local' }}
         run: sudo apt-get update && sudo apt-get install -y stress-ng iproute2
 
+      - name: Build or fetch hugegraph-struct
+        run: |
+          REVISION=$(mvn -q -DforceStdout help:evaluate -Dexpression=revision -f pom.xml)
+          if [ -f hugegraph-struct/pom.xml ]; then
+            echo "[INFO] Found hugegraph-struct source, building from source"
+            mvn -U -ntp -DskipTests -pl hugegraph-struct -am install
+          else
+            echo "[INFO] hugegraph-struct source not found, fetching artifact $REVISION"
+            mvn -U -ntp dependency:get -Dartifact=org.apache.hugegraph:hugegraph-struct:$REVISION
+          fi
+
       - name: Build project
         run: |
-          mvn clean package -DskipTests -Dmaven.javadoc.skip=true -ntp
+          mvn clean package -U -Dmaven.javadoc.skip=true -Dmaven.test.skip=true -ntp --fail-at-end
 
       - name: Start HugeGraph cluster
         if: ${{ github.event.inputs.target == 'local' }}
@@ -107,7 +128,7 @@ jobs:
         if: always()
         run: |
           echo "=== JSON Report ==="
-          cat target/chaos-reports/report.json 2>/dev/null || echo "No JSON report found"
+          cat target/chaos-reports/report.json 2>/dev/null || echo "No JSON report found at target/chaos-reports/"
           echo ""
           echo "=== Report files ==="
           find . -name "report.*" -path "*/chaos-reports/*" 2>/dev/null
@@ -125,5 +146,6 @@ jobs:
           path: |
             target/chaos-reports/
             hugegraph-chaos-test/target/chaos-reports/
+            hugegraph-chaos-test/hugegraph-chaos-core/target/chaos-reports/
           retention-days: 7
           if-no-files-found: ignore
