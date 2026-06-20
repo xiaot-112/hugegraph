@@ -62,6 +62,7 @@ STORE_BASE_RAFT=8510
 
 SERVER_BASE_REST=8080
 SERVER_BASE_RPC=8091
+SERVER_BASE_GREMLIN=8182
 
 IS_CI=false
 if [ "${CI:-}" = "true" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
@@ -276,6 +277,7 @@ echo "=== Starting ${SERVER_COUNT} Server nodes ==="
 for i in $(seq 0 $((SERVER_COUNT - 1))); do
     REST_PORT=$((SERVER_BASE_REST + i))
     RPC_PORT=$((SERVER_BASE_RPC + i))
+    GREMLIN_PORT=$((SERVER_BASE_GREMLIN + i))
 
     INSTANCE_DIR="${SERVER_DIR}_${i}"
     rm -rf "$INSTANCE_DIR"
@@ -283,6 +285,7 @@ for i in $(seq 0 $((SERVER_COUNT - 1))); do
 
     CONF="${INSTANCE_DIR}/conf/graphs/hugegraph.properties"
     REST_CONF="${INSTANCE_DIR}/conf/rest-server.properties"
+    GREMLIN_CONF="${INSTANCE_DIR}/conf/gremlin-server.yaml"
 
     sed_in_place "s|backend=.*|backend=hstore|g" "$CONF"
     sed_in_place "s|serializer=.*|serializer=binary|g" "$CONF"
@@ -295,6 +298,20 @@ for i in $(seq 0 $((SERVER_COUNT - 1))); do
 
     sed_in_place "s|restserver.url=.*|restserver.url=http://127.0.0.1:${REST_PORT}|g" "$REST_CONF"
     sed_in_place "s|rpc.server_port=.*|rpc.server_port=${RPC_PORT}|g" "$REST_CONF"
+
+    if grep -q "gremlinserver.url" "$REST_CONF"; then
+        sed_in_place "s|gremlinserver.url=.*|gremlinserver.url=127.0.0.1:${GREMLIN_PORT}|g" "$REST_CONF"
+    else
+        echo "gremlinserver.url=127.0.0.1:${GREMLIN_PORT}" >> "$REST_CONF"
+    fi
+
+    if grep -q "^port:" "$GREMLIN_CONF"; then
+        sed_in_place "s|^port:.*|port: ${GREMLIN_PORT}|g" "$GREMLIN_CONF"
+    elif grep -q "^#port:" "$GREMLIN_CONF"; then
+        sed_in_place "s|^#port:.*|port: ${GREMLIN_PORT}|g" "$GREMLIN_CONF"
+    else
+        sed_in_place "s|^#host:.*|host: 127.0.0.1\nport: ${GREMLIN_PORT}|g" "$GREMLIN_CONF"
+    fi
 
     if grep -q "usePD" "$REST_CONF"; then
         sed_in_place "s|usePD=.*|usePD=true|g" "$REST_CONF"
@@ -320,7 +337,7 @@ for i in $(seq 0 $((SERVER_COUNT - 1))); do
         echo "server.role=${ROLE}" >> "$REST_CONF"
     fi
 
-    echo "Starting Server node ${i}: rest=${REST_PORT}, rpc=${RPC_PORT}, role=${ROLE}"
+    echo "Starting Server node ${i}: rest=${REST_PORT}, rpc=${RPC_PORT}, gremlin=${GREMLIN_PORT}, role=${ROLE}"
     pushd "$INSTANCE_DIR" > /dev/null
     export JAVA_OPTIONS="$SERVER_JAVA_OPTIONS"
     printf 'pa\n' | bash bin/init-store.sh 2>/dev/null || true
