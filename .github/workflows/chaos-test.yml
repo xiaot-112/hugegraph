@@ -113,10 +113,15 @@ jobs:
       - name: Verify HugeGraph cluster
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
+          if [ -f cluster-ports.txt ]; then
+            source cluster-ports.txt
+          fi
+
           echo "=== Checking PD nodes ==="
           PD_COUNT=${{ github.event.inputs.pd_count }}
           for i in $(seq 0 $((PD_COUNT - 1))); do
-            PORT=$((8620 + i))
+            VAR="PD_REST_${i}"
+            PORT="${!VAR:-$((8620 + i))}"
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               http://localhost:$PORT/actuator/health 2>/dev/null || echo "000")
             echo "PD node $i on port $PORT: HTTP $STATUS"
@@ -129,7 +134,8 @@ jobs:
           echo "=== Checking Store nodes ==="
           STORE_COUNT=${{ github.event.inputs.store_count }}
           for i in $(seq 0 $((STORE_COUNT - 1))); do
-            PORT=$((8520 + i))
+            VAR="STORE_REST_${i}"
+            PORT="${!VAR:-$((8520 + i))}"
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               http://localhost:$PORT/actuator/health 2>/dev/null || echo "000")
             echo "Store node $i on port $PORT: HTTP $STATUS"
@@ -142,7 +148,8 @@ jobs:
           echo "=== Checking Server nodes ==="
           SERVER_COUNT=${{ github.event.inputs.server_count }}
           for i in $(seq 0 $((SERVER_COUNT - 1))); do
-            PORT=$((8080 + i))
+            VAR="SERVER_REST_${i}"
+            PORT="${!VAR:-$((8080 + i))}"
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
               http://localhost:$PORT/graphs 2>/dev/null || echo "000")
             echo "Server node $i on port $PORT: HTTP $STATUS"

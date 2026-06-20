@@ -87,33 +87,20 @@ else
     STARTUP_RETRY_COUNT=0
 fi
 
-PD_RAFT_PEERS=""
-PD_GRPC_LIST=""
-STORE_GRPC_LIST=""
-
-for i in $(seq 0 $((PD_COUNT - 1))); do
-    RAFT_PORT=$((PD_BASE_RAFT + i))
-    if [ -n "$PD_RAFT_PEERS" ]; then
-        PD_RAFT_PEERS="${PD_RAFT_PEERS},"
-    fi
-    PD_RAFT_PEERS="${PD_RAFT_PEERS}127.0.0.1:${RAFT_PORT}"
-done
-
-for i in $(seq 0 $((STORE_COUNT - 1))); do
-    GRPC_PORT=$((STORE_BASE_GRPC + i))
-    if [ -n "$STORE_GRPC_LIST" ]; then
-        STORE_GRPC_LIST="${STORE_GRPC_LIST},"
-    fi
-    STORE_GRPC_LIST="${STORE_GRPC_LIST}127.0.0.1:${GRPC_PORT}"
-done
-
-for i in $(seq 0 $((PD_COUNT - 1))); do
-    GRPC_PORT=$((PD_BASE_GRPC + i))
-    if [ -n "$PD_GRPC_LIST" ]; then
-        PD_GRPC_LIST="${PD_GRPC_LIST},"
-    fi
-    PD_GRPC_LIST="${PD_GRPC_LIST}127.0.0.1:${GRPC_PORT}"
-done
+function find_free_port() {
+    local start_port=$1
+    local end_port=$((start_port + 100))
+    local port=$start_port
+    while [ $port -lt $end_port ]; do
+        if ! lsof -i :"$port" >/dev/null 2>&1; then
+            echo "$port"
+            return 0
+        fi
+        port=$((port + 1))
+    done
+    echo ""
+    return 1
+}
 
 function sed_in_place() {
     local expression=$1
@@ -122,6 +109,32 @@ function sed_in_place() {
         Darwin) sed -i '' "$expression" "$file" ;;
         *) sed -i "$expression" "$file" ;;
     esac
+}
+
+function set_property() {
+    local file=$1
+    local key=$2
+    local value=$3
+    if grep -q "^$key=" "$file"; then
+        sed_in_place "s|^$key=.*|$key=$value|g" "$file"
+    elif grep -q "^#$key=" "$file"; then
+        sed_in_place "s|^#$key=.*|$key=$value|g" "$file"
+    else
+        echo "$key=$value" >> "$file"
+    fi
+}
+
+function set_yaml_key() {
+    local file=$1
+    local key=$2
+    local value=$3
+    if grep -q "^${key}:" "$file"; then
+        sed_in_place "s|^${key}:.*|${key}: ${value}|g" "$file"
+    elif grep -q "^#${key}:" "$file"; then
+        sed_in_place "s|^#${key}:.*|${key}: ${value}|g" "$file"
+    else
+        sed_in_place "1i|${key}: ${value}|" "$file"
+    fi
 }
 
 function show_memory() {
@@ -173,6 +186,78 @@ function start_with_retry() {
     return 1
 }
 
+PD_GRPC_PORTS=()
+PD_REST_PORTS=()
+PD_RAFT_PORTS=()
+
+for i in $(seq 0 $((PD_COUNT - 1))); do
+    GRPC_PORT=$(find_free_port $((PD_BASE_GRPC + i)))
+    REST_PORT=$(find_free_port $((PD_BASE_REST + i)))
+    RAFT_PORT=$(find_free_port $((PD_BASE_RAFT + i)))
+    if [ -z "$GRPC_PORT" ] || [ -z "$REST_PORT" ] || [ -z "$RAFT_PORT" ]; then
+        echo "ERROR: Cannot find free ports for PD node ${i}"
+        exit 1
+    fi
+    PD_GRPC_PORTS+=("$GRPC_PORT")
+    PD_REST_PORTS+=("$REST_PORT")
+    PD_RAFT_PORTS+=("$RAFT_PORT")
+done
+
+PD_RAFT_PEERS=""
+PD_GRPC_LIST=""
+for i in $(seq 0 $((PD_COUNT - 1))); do
+    if [ -n "$PD_RAFT_PEERS" ]; then
+        PD_RAFT_PEERS="${PD_RAFT_PEERS},"
+    fi
+    PD_RAFT_PEERS="${PD_RAFT_PEERS}127.0.0.1:${PD_RAFT_PORTS[$i]}"
+    if [ -n "$PD_GRPC_LIST" ]; then
+        PD_GRPC_LIST="${PD_GRPC_LIST},"
+    fi
+    PD_GRPC_LIST="${PD_GRPC_LIST}127.0.0.1:${PD_GRPC_PORTS[$i]}"
+done
+
+STORE_GRPC_PORTS=()
+STORE_REST_PORTS=()
+STORE_RAFT_PORTS=()
+
+for i in $(seq 0 $((STORE_COUNT - 1))); do
+    GRPC_PORT=$(find_free_port $((STORE_BASE_GRPC + i)))
+    REST_PORT=$(find_free_port $((STORE_BASE_REST + i)))
+    RAFT_PORT=$(find_free_port $((STORE_BASE_RAFT + i)))
+    if [ -z "$GRPC_PORT" ] || [ -z "$REST_PORT" ] || [ -z "$RAFT_PORT" ]; then
+        echo "ERROR: Cannot find free ports for Store node ${i}"
+        exit 1
+    fi
+    STORE_GRPC_PORTS+=("$GRPC_PORT")
+    STORE_REST_PORTS+=("$REST_PORT")
+    STORE_RAFT_PORTS+=("$RAFT_PORT")
+done
+
+STORE_GRPC_LIST=""
+for i in $(seq 0 $((STORE_COUNT - 1))); do
+    if [ -n "$STORE_GRPC_LIST" ]; then
+        STORE_GRPC_LIST="${STORE_GRPC_LIST},"
+    fi
+    STORE_GRPC_LIST="${STORE_GRPC_LIST}127.0.0.1:${STORE_GRPC_PORTS[$i]}"
+done
+
+SERVER_REST_PORTS=()
+SERVER_RPC_PORTS=()
+SERVER_GREMLIN_PORTS=()
+
+for i in $(seq 0 $((SERVER_COUNT - 1))); do
+    REST_PORT=$(find_free_port $((SERVER_BASE_REST + i)))
+    RPC_PORT=$(find_free_port $((SERVER_BASE_RPC + i)))
+    GREMLIN_PORT=$(find_free_port $((SERVER_BASE_GREMLIN + i)))
+    if [ -z "$REST_PORT" ] || [ -z "$RPC_PORT" ] || [ -z "$GREMLIN_PORT" ]; then
+        echo "ERROR: Cannot find free ports for Server node ${i}"
+        exit 1
+    fi
+    SERVER_REST_PORTS+=("$REST_PORT")
+    SERVER_RPC_PORTS+=("$RPC_PORT")
+    SERVER_GREMLIN_PORTS+=("$GREMLIN_PORT")
+done
+
 echo "=== Environment ==="
 echo "  CI: $IS_CI"
 echo "  Cluster: ${PD_COUNT} PD + ${STORE_COUNT} Store + ${SERVER_COUNT} Server"
@@ -183,11 +268,29 @@ echo "  Version: $VERSION"
 show_memory
 
 echo ""
+echo "=== Port allocation ==="
+PORT_INFO_FILE="$HOME_DIR/cluster-ports.txt"
+> "$PORT_INFO_FILE"
+for i in $(seq 0 $((PD_COUNT - 1))); do
+    echo "  PD node ${i}: grpc=${PD_GRPC_PORTS[$i]}, rest=${PD_REST_PORTS[$i]}, raft=${PD_RAFT_PORTS[$i]}"
+    echo "PD_REST_${i}=${PD_REST_PORTS[$i]}" >> "$PORT_INFO_FILE"
+done
+for i in $(seq 0 $((STORE_COUNT - 1))); do
+    echo "  Store node ${i}: grpc=${STORE_GRPC_PORTS[$i]}, rest=${STORE_REST_PORTS[$i]}, raft=${STORE_RAFT_PORTS[$i]}"
+    echo "STORE_REST_${i}=${STORE_REST_PORTS[$i]}" >> "$PORT_INFO_FILE"
+done
+for i in $(seq 0 $((SERVER_COUNT - 1))); do
+    echo "  Server node ${i}: rest=${SERVER_REST_PORTS[$i]}, rpc=${SERVER_RPC_PORTS[$i]}, gremlin=${SERVER_GREMLIN_PORTS[$i]}"
+    echo "SERVER_REST_${i}=${SERVER_REST_PORTS[$i]}" >> "$PORT_INFO_FILE"
+done
+echo "  Port info saved to $PORT_INFO_FILE"
+
+echo ""
 echo "=== Starting ${PD_COUNT} PD nodes ==="
 for i in $(seq 0 $((PD_COUNT - 1))); do
-    GRPC_PORT=$((PD_BASE_GRPC + i))
-    REST_PORT=$((PD_BASE_REST + i))
-    RAFT_PORT=$((PD_BASE_RAFT + i))
+    GRPC_PORT=${PD_GRPC_PORTS[$i]}
+    REST_PORT=${PD_REST_PORTS[$i]}
+    RAFT_PORT=${PD_RAFT_PORTS[$i]}
     DATA_PATH="./pd_data_${i}"
 
     INSTANCE_DIR="${PD_DIR}_${i}"
@@ -209,7 +312,7 @@ echo ""
 echo "=== Waiting for PD cluster to be ready ==="
 PD_READY=true
 for i in $(seq 0 $((PD_COUNT - 1))); do
-    REST_PORT=$((PD_BASE_REST + i))
+    REST_PORT=${PD_REST_PORTS[$i]}
     if ! wait_for_http "http://127.0.0.1:${REST_PORT}/actuator/health" $PD_WAIT_RETRIES; then
         echo "ERROR: PD node ${i} on port ${REST_PORT} is not ready"
         PD_READY=false
@@ -230,9 +333,9 @@ fi
 echo ""
 echo "=== Starting ${STORE_COUNT} Store nodes ==="
 for i in $(seq 0 $((STORE_COUNT - 1))); do
-    GRPC_PORT=$((STORE_BASE_GRPC + i))
-    REST_PORT=$((STORE_BASE_REST + i))
-    RAFT_PORT=$((STORE_BASE_RAFT + i))
+    GRPC_PORT=${STORE_GRPC_PORTS[$i]}
+    REST_PORT=${STORE_REST_PORTS[$i]}
+    RAFT_PORT=${STORE_RAFT_PORTS[$i]}
     DATA_PATH="./storage_${i}"
 
     INSTANCE_DIR="${STORE_DIR}_${i}"
@@ -254,7 +357,7 @@ echo ""
 echo "=== Waiting for Store cluster to be ready ==="
 STORE_READY=true
 for i in $(seq 0 $((STORE_COUNT - 1))); do
-    REST_PORT=$((STORE_BASE_REST + i))
+    REST_PORT=${STORE_REST_PORTS[$i]}
     if ! wait_for_http "http://127.0.0.1:${REST_PORT}/actuator/health" $STORE_WAIT_RETRIES; then
         echo "ERROR: Store node ${i} on port ${REST_PORT} is not ready"
         STORE_READY=false
@@ -275,9 +378,9 @@ fi
 echo ""
 echo "=== Starting ${SERVER_COUNT} Server nodes ==="
 for i in $(seq 0 $((SERVER_COUNT - 1))); do
-    REST_PORT=$((SERVER_BASE_REST + i))
-    RPC_PORT=$((SERVER_BASE_RPC + i))
-    GREMLIN_PORT=$((SERVER_BASE_GREMLIN + i))
+    REST_PORT=${SERVER_REST_PORTS[$i]}
+    RPC_PORT=${SERVER_RPC_PORTS[$i]}
+    GREMLIN_PORT=${SERVER_GREMLIN_PORTS[$i]}
 
     INSTANCE_DIR="${SERVER_DIR}_${i}"
     rm -rf "$INSTANCE_DIR"
@@ -296,22 +399,12 @@ for i in $(seq 0 $((SERVER_COUNT - 1))); do
         echo "pd.peers=${PD_GRPC_LIST}" >> "$CONF"
     fi
 
-    sed_in_place "s|restserver.url=.*|restserver.url=http://127.0.0.1:${REST_PORT}|g" "$REST_CONF"
-    sed_in_place "s|rpc.server_port=.*|rpc.server_port=${RPC_PORT}|g" "$REST_CONF"
+    set_property "$REST_CONF" "restserver.url" "http://127.0.0.1:${REST_PORT}"
+    set_property "$REST_CONF" "rpc.server_port" "${RPC_PORT}"
+    set_property "$REST_CONF" "gremlinserver.url" "127.0.0.1:${GREMLIN_PORT}"
 
-    if grep -q "gremlinserver.url" "$REST_CONF"; then
-        sed_in_place "s|gremlinserver.url=.*|gremlinserver.url=127.0.0.1:${GREMLIN_PORT}|g" "$REST_CONF"
-    else
-        echo "gremlinserver.url=127.0.0.1:${GREMLIN_PORT}" >> "$REST_CONF"
-    fi
-
-    if grep -q "^port:" "$GREMLIN_CONF"; then
-        sed_in_place "s|^port:.*|port: ${GREMLIN_PORT}|g" "$GREMLIN_CONF"
-    elif grep -q "^#port:" "$GREMLIN_CONF"; then
-        sed_in_place "s|^#port:.*|port: ${GREMLIN_PORT}|g" "$GREMLIN_CONF"
-    else
-        sed_in_place "s|^#host:.*|host: 127.0.0.1\nport: ${GREMLIN_PORT}|g" "$GREMLIN_CONF"
-    fi
+    set_yaml_key "$GREMLIN_CONF" "host" "127.0.0.1"
+    set_yaml_key "$GREMLIN_CONF" "port" "${GREMLIN_PORT}"
 
     if grep -q "usePD" "$REST_CONF"; then
         sed_in_place "s|usePD=.*|usePD=true|g" "$REST_CONF"
@@ -350,7 +443,7 @@ echo ""
 echo "=== Waiting for Server cluster to be ready ==="
 SERVER_READY=true
 for i in $(seq 0 $((SERVER_COUNT - 1))); do
-    REST_PORT=$((SERVER_BASE_REST + i))
+    REST_PORT=${SERVER_REST_PORTS[$i]}
     if ! wait_for_http "http://127.0.0.1:${REST_PORT}/graphs" $SERVER_WAIT_RETRIES; then
         echo "ERROR: Server node ${i} on port ${REST_PORT} is not ready"
         SERVER_READY=false
