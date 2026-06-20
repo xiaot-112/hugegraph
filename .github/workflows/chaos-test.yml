@@ -14,9 +14,10 @@ on:
       scenario:
         description: 'Scenario file'
         required: true
-        default: 'scenarios/local-stress-test.yaml'
+        default: 'scenarios/real-cluster-chaos.yaml'
         type: choice
         options:
+          - scenarios/real-cluster-chaos.yaml
           - scenarios/local-stress-test.yaml
           - scenarios/local-framework-validation.yaml
           - scenarios/cpu-stress.yaml
@@ -25,7 +26,7 @@ on:
       report_format:
         description: 'Report format (comma-separated: html,json,markdown)'
         required: false
-        default: 'html,json'
+        default: 'html,json,markdown'
         type: string
       pd_count:
         description: 'Number of PD nodes'
@@ -73,6 +74,21 @@ jobs:
           cp $HOME/.m2/settings.xml /tmp/settings.xml || true
           mv -vf .github/configs/settings.xml $HOME/.m2/settings.xml
 
+      - name: Configure CI environment for cluster
+        if: ${{ github.event.inputs.target == 'local' }}
+        run: |
+          sudo fallocate -l 4G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo "Swap configured:"
+          free -h
+          echo ""
+          echo "=== System resources ==="
+          echo "CPU cores: $(nproc)"
+          echo "Memory: $(free -h | head -2 | tail -1 | awk '{print $2}')"
+          echo "Disk: $(df -h / | tail -1 | awk '{print $4}') available"
+
       - name: Install stress-ng and iproute2
         if: ${{ github.event.inputs.target == 'local' }}
         run: sudo apt-get update && sudo apt-get install -y stress-ng iproute2
@@ -92,6 +108,18 @@ jobs:
         run: |
           mvn clean package -U -Dmaven.javadoc.skip=true -Dmaven.test.skip=true -ntp --fail-at-end
 
+      - name: Show system resources before cluster start
+        if: ${{ github.event.inputs.target == 'local' }}
+        run: |
+          echo "=== Memory ==="
+          free -h
+          echo "=== CPU ==="
+          nproc
+          echo "=== Disk ==="
+          df -h / | tail -1
+          echo "=== Swap ==="
+          swapon --show
+
       - name: Start HugeGraph cluster
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
@@ -100,21 +128,53 @@ jobs:
             ${{ github.event.inputs.store_count }} \
             ${{ github.event.inputs.server_count }}
 
-      - name: Wait for HugeGraph cluster ready
+      - name: Verify HugeGraph cluster
         if: ${{ github.event.inputs.target == 'local' }}
         run: |
-          for i in $(seq 1 60); do
+          echo "=== Checking PD nodes ==="
+          PD_COUNT=${{ github.event.inputs.pd_count }}
+          for i in $(seq 0 $((PD_COUNT - 1))); do
+            PORT=$((8620 + i))
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-              http://localhost:8080/graphs 2>/dev/null || echo "000")
-            if [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ]; then
-              echo "HugeGraph cluster is ready (HTTP $STATUS)"
-              exit 0
+              http://localhost:$PORT/actuator/health 2>/dev/null || echo "000")
+            echo "PD node $i on port $PORT: HTTP $STATUS"
+            if [ "$STATUS" = "000" ]; then
+              echo "ERROR: PD node $i is not responding"
+              exit 1
             fi
-            echo "Waiting for cluster... ($i/60)"
-            sleep 5
           done
-          echo "Cluster did not become ready in time"
-          exit 1
+
+          echo "=== Checking Store nodes ==="
+          STORE_COUNT=${{ github.event.inputs.store_count }}
+          for i in $(seq 0 $((STORE_COUNT - 1))); do
+            PORT=$((8520 + i))
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              http://localhost:$PORT/actuator/health 2>/dev/null || echo "000")
+            echo "Store node $i on port $PORT: HTTP $STATUS"
+            if [ "$STATUS" = "000" ]; then
+              echo "ERROR: Store node $i is not responding"
+              exit 1
+            fi
+          done
+
+          echo "=== Checking Server nodes ==="
+          SERVER_COUNT=${{ github.event.inputs.server_count }}
+          for i in $(seq 0 $((SERVER_COUNT - 1))); do
+            PORT=$((8080 + i))
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              http://localhost:$PORT/graphs 2>/dev/null || echo "000")
+            echo "Server node $i on port $PORT: HTTP $STATUS"
+            if [ "$STATUS" = "000" ]; then
+              echo "ERROR: Server node $i is not responding"
+              exit 1
+            fi
+          done
+
+          echo "=== Java processes ==="
+          jps -l 2>/dev/null || ps aux | grep -i hugegraph | grep -v grep
+
+          echo "=== Memory after cluster start ==="
+          free -h
 
       - name: Run chaos test
         run: |
@@ -130,13 +190,55 @@ jobs:
           echo "=== JSON Report ==="
           cat target/chaos-reports/report.json 2>/dev/null || echo "No JSON report found at target/chaos-reports/"
           echo ""
+          echo "=== Markdown Report ==="
+          cat target/chaos-reports/report.md 2>/dev/null || echo "No Markdown report found"
+          echo ""
           echo "=== Report files ==="
           find . -name "report.*" -path "*/chaos-reports/*" 2>/dev/null
+
+      - name: Collect cluster diagnostics on failure
+        if: failure() && github.event.inputs.target == 'local'
+        run: |
+          echo "=== Java processes ==="
+          jps -l 2>/dev/null || true
+          echo ""
+          echo "=== Memory state ==="
+          free -h
+          echo ""
+          echo "=== PD logs ==="
+          for d in hugegraph-pd/apache-hugegraph-pd-*_*; do
+            if [ -d "$d" ]; then
+              echo "--- $d ---"
+              tail -30 "$d/logs/hugegraph-pd.log" 2>/dev/null || true
+            fi
+          done
+          echo ""
+          echo "=== Store logs ==="
+          for d in hugegraph-store/apache-hugegraph-store-*_*; do
+            if [ -d "$d" ]; then
+              echo "--- $d ---"
+              tail -30 "$d/logs/hugegraph-store.log" 2>/dev/null || true
+            fi
+          done
+          echo ""
+          echo "=== Server logs ==="
+          for d in hugegraph-server/apache-hugegraph-server-*_*; do
+            if [ -d "$d" ]; then
+              echo "--- $d ---"
+              tail -30 "$d/logs/hugegraph-server.log" 2>/dev/null || true
+            fi
+          done
 
       - name: Stop HugeGraph cluster
         if: always() && github.event.inputs.target == 'local'
         run: |
           bash hugegraph-chaos-test/scripts/stop-cluster.sh || true
+
+      - name: Cleanup swap
+        if: always() && github.event.inputs.target == 'local'
+        run: |
+          sudo swapoff /swapfile 2>/dev/null || true
+          sudo rm -f /swapfile 2>/dev/null || true
 
       - name: Upload chaos report
         if: always()
@@ -148,4 +250,16 @@ jobs:
             hugegraph-chaos-test/target/chaos-reports/
             hugegraph-chaos-test/hugegraph-chaos-core/target/chaos-reports/
           retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload cluster logs
+        if: failure() && github.event.inputs.target == 'local'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cluster-logs-${{ github.run_id }}
+          path: |
+            hugegraph-pd/apache-hugegraph-pd-*/logs/
+            hugegraph-store/apache-hugegraph-store-*/logs/
+            hugegraph-server/apache-hugegraph-server-*/logs/
+          retention-days: 5
           if-no-files-found: ignore

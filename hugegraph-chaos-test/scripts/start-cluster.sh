@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-set -euo pipefail
+set -eo pipefail
 
 PD_COUNT=${1:-3}
 STORE_COUNT=${2:-3}
@@ -25,17 +25,32 @@ HOME_DIR=$(pwd)
 
 PROPERTIES_FILE="$HOME_DIR/hugegraph-commons/hugegraph-common/src/main/resources/version.properties"
 if [ -f "$PROPERTIES_FILE" ]; then
-    set -a
-    source "$PROPERTIES_FILE"
-    set +a
+    VERSION=$(grep "^VersionInBash=" "$PROPERTIES_FILE" | cut -d'=' -f2)
+    if [ -z "$VERSION" ]; then
+        echo "Error: VersionInBash not found in $PROPERTIES_FILE"
+        exit 1
+    fi
 else
     echo "Error: properties file not found at $PROPERTIES_FILE"
     exit 1
 fi
 
-PD_DIR="$HOME_DIR/hugegraph-pd/apache-hugegraph-pd-$VersionInBash"
-STORE_DIR="$HOME_DIR/hugegraph-store/apache-hugegraph-store-$VersionInBash"
-SERVER_DIR="$HOME_DIR/hugegraph-server/apache-hugegraph-server-$VersionInBash"
+PD_DIR="$HOME_DIR/hugegraph-pd/apache-hugegraph-pd-$VERSION"
+STORE_DIR="$HOME_DIR/hugegraph-store/apache-hugegraph-store-$VERSION"
+SERVER_DIR="$HOME_DIR/hugegraph-server/apache-hugegraph-server-$VERSION"
+
+if [ ! -d "$PD_DIR" ]; then
+    echo "Error: PD directory not found at $PD_DIR"
+    exit 1
+fi
+if [ ! -d "$STORE_DIR" ]; then
+    echo "Error: Store directory not found at $STORE_DIR"
+    exit 1
+fi
+if [ ! -d "$SERVER_DIR" ]; then
+    echo "Error: Server directory not found at $SERVER_DIR"
+    exit 1
+fi
 
 PD_BASE_GRPC=8686
 PD_BASE_REST=8620
@@ -47,6 +62,29 @@ STORE_BASE_RAFT=8510
 
 SERVER_BASE_REST=8080
 SERVER_BASE_RPC=8091
+
+IS_CI=false
+if [ "${CI:-}" = "true" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
+    IS_CI=true
+fi
+
+if [ "$IS_CI" = "true" ]; then
+    PD_JAVA_OPTIONS="-Xms128m -Xmx256m -XX:+UseSerialGC -XX:+HeapDumpOnOutOfMemoryError"
+    STORE_JAVA_OPTIONS="-Xms128m -Xmx512m -XX:+UseSerialGC -XX:MetaspaceSize=128M -XX:+HeapDumpOnOutOfMemoryError"
+    SERVER_JAVA_OPTIONS="-Xms128m -Xmx512m -XX:+UseSerialGC -XX:+HeapDumpOnOutOfMemoryError"
+    PD_WAIT_RETRIES=60
+    STORE_WAIT_RETRIES=60
+    SERVER_WAIT_RETRIES=90
+    STARTUP_RETRY_COUNT=1
+else
+    PD_JAVA_OPTIONS="-Xms256m -Xmx1024m -XX:+HeapDumpOnOutOfMemoryError"
+    STORE_JAVA_OPTIONS="-Xms256m -Xmx1024m -XX:MetaspaceSize=256M -XX:+HeapDumpOnOutOfMemoryError"
+    SERVER_JAVA_OPTIONS="-Xms256m -Xmx1024m -XX:+HeapDumpOnOutOfMemoryError"
+    PD_WAIT_RETRIES=30
+    STORE_WAIT_RETRIES=30
+    SERVER_WAIT_RETRIES=60
+    STARTUP_RETRY_COUNT=0
+fi
 
 PD_RAFT_PEERS=""
 PD_GRPC_LIST=""
@@ -85,6 +123,65 @@ function sed_in_place() {
     esac
 }
 
+function show_memory() {
+    if [ "$IS_CI" = "true" ]; then
+        echo "  [Memory] $(free -m 2>/dev/null | head -2 | tail -1 | awk '{printf "used=%sM free=%sM total=%sM", $3, $4, $2}')"
+    fi
+}
+
+function wait_for_http() {
+    local url=$1
+    local max_retries=${2:-30}
+    local expected_status=${3:-"200"}
+    local retry=0
+    while [ $retry -lt $max_retries ]; do
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+        if [ "$STATUS" = "$expected_status" ] || ([ "$expected_status" = "200" ] && ([ "$STATUS" = "200" ] || [ "$STATUS" = "401" ])); then
+            echo "  -> $url is ready (HTTP $STATUS)"
+            return 0
+        fi
+        retry=$((retry + 1))
+        if [ $((retry % 10)) -eq 0 ]; then
+            show_memory
+        fi
+        echo "  -> Waiting for $url... ($retry/$max_retries, HTTP $STATUS)"
+        sleep 3
+    done
+    echo "  -> $url did not become ready in time (last HTTP $STATUS)"
+    return 1
+}
+
+function start_with_retry() {
+    local name=$1
+    local start_cmd=$2
+    local log_file=$3
+    local retry=0
+    while [ $retry -le $STARTUP_RETRY_COUNT ]; do
+        if eval "$start_cmd"; then
+            return 0
+        fi
+        retry=$((retry + 1))
+        if [ $retry -le $STARTUP_RETRY_COUNT ]; then
+            echo "  -> Retrying $name startup (attempt $((retry + 1))/$((STARTUP_RETRY_COUNT + 1)))..."
+            sleep 5
+        fi
+    done
+    echo "ERROR: $name failed to start after $((STARTUP_RETRY_COUNT + 1)) attempts"
+    echo "=== Last 50 lines of $log_file ==="
+    tail -50 "$log_file" 2>/dev/null || echo "(log file not found)"
+    return 1
+}
+
+echo "=== Environment ==="
+echo "  CI: $IS_CI"
+echo "  Cluster: ${PD_COUNT} PD + ${STORE_COUNT} Store + ${SERVER_COUNT} Server"
+echo "  PD JVM: $PD_JAVA_OPTIONS"
+echo "  Store JVM: $STORE_JAVA_OPTIONS"
+echo "  Server JVM: $SERVER_JAVA_OPTIONS"
+echo "  Version: $VERSION"
+show_memory
+
+echo ""
 echo "=== Starting ${PD_COUNT} PD nodes ==="
 for i in $(seq 0 $((PD_COUNT - 1))); do
     GRPC_PORT=$((PD_BASE_GRPC + i))
@@ -93,18 +190,43 @@ for i in $(seq 0 $((PD_COUNT - 1))); do
     DATA_PATH="./pd_data_${i}"
 
     INSTANCE_DIR="${PD_DIR}_${i}"
+    rm -rf "$INSTANCE_DIR"
     cp -r "$PD_DIR" "$INSTANCE_DIR"
 
     export SPRING_APPLICATION_JSON="{\"grpc\":{\"host\":\"127.0.0.1\",\"port\":\"${GRPC_PORT}\"},\"server\":{\"port\":\"${REST_PORT}\"},\"raft\":{\"address\":\"127.0.0.1:${RAFT_PORT}\",\"peers-list\":\"${PD_RAFT_PEERS}\"},\"pd\":{\"data-path\":\"${DATA_PATH}\",\"initial-store-list\":\"${STORE_GRPC_LIST}\",\"initial-store-count\":${STORE_COUNT}}}"
 
     echo "Starting PD node ${i}: grpc=${GRPC_PORT}, rest=${REST_PORT}, raft=${RAFT_PORT}"
-    pushd "$INSTANCE_DIR"
-    bash bin/start-hugegraph-pd.sh -j "-Xms256m -Xmx512m" || (cat logs/hugegraph-pd.log 2>/dev/null; exit 1)
-    popd
+    pushd "$INSTANCE_DIR" > /dev/null
+    export JAVA_OPTIONS="$PD_JAVA_OPTIONS"
+    start_with_retry "PD node ${i}" "bash bin/start-hugegraph-pd.sh" "logs/hugegraph-pd.log" || exit 1
+    popd > /dev/null
     unset SPRING_APPLICATION_JSON
-    sleep 5
+    unset JAVA_OPTIONS
 done
 
+echo ""
+echo "=== Waiting for PD cluster to be ready ==="
+PD_READY=true
+for i in $(seq 0 $((PD_COUNT - 1))); do
+    REST_PORT=$((PD_BASE_REST + i))
+    if ! wait_for_http "http://127.0.0.1:${REST_PORT}/actuator/health" $PD_WAIT_RETRIES; then
+        echo "ERROR: PD node ${i} on port ${REST_PORT} is not ready"
+        PD_READY=false
+    fi
+done
+if [ "$PD_READY" = "false" ]; then
+    echo "ERROR: PD cluster is not ready, aborting"
+    for i in $(seq 0 $((PD_COUNT - 1))); do
+        INSTANCE_DIR="${PD_DIR}_${i}"
+        if [ -d "$INSTANCE_DIR" ]; then
+            echo "--- PD node ${i} log ---"
+            tail -30 "$INSTANCE_DIR/logs/hugegraph-pd.log" 2>/dev/null || true
+        fi
+    done
+    exit 1
+fi
+
+echo ""
 echo "=== Starting ${STORE_COUNT} Store nodes ==="
 for i in $(seq 0 $((STORE_COUNT - 1))); do
     GRPC_PORT=$((STORE_BASE_GRPC + i))
@@ -113,24 +235,50 @@ for i in $(seq 0 $((STORE_COUNT - 1))); do
     DATA_PATH="./storage_${i}"
 
     INSTANCE_DIR="${STORE_DIR}_${i}"
+    rm -rf "$INSTANCE_DIR"
     cp -r "$STORE_DIR" "$INSTANCE_DIR"
 
     export SPRING_APPLICATION_JSON="{\"pdserver\":{\"address\":\"${PD_GRPC_LIST}\"},\"grpc\":{\"host\":\"127.0.0.1\",\"port\":\"${GRPC_PORT}\"},\"raft\":{\"address\":\"127.0.0.1:${RAFT_PORT}\"},\"server\":{\"port\":\"${REST_PORT}\"},\"app\":{\"data-path\":\"${DATA_PATH}\"}}"
 
     echo "Starting Store node ${i}: grpc=${GRPC_PORT}, rest=${REST_PORT}, raft=${RAFT_PORT}"
-    pushd "$INSTANCE_DIR"
-    bash bin/start-hugegraph-store.sh -j "-Xms256m -Xmx512m" || (cat logs/hugegraph-store.log 2>/dev/null; exit 1)
-    popd
+    pushd "$INSTANCE_DIR" > /dev/null
+    export JAVA_OPTIONS="$STORE_JAVA_OPTIONS"
+    start_with_retry "Store node ${i}" "bash bin/start-hugegraph-store.sh" "logs/hugegraph-store.log" || exit 1
+    popd > /dev/null
     unset SPRING_APPLICATION_JSON
-    sleep 5
+    unset JAVA_OPTIONS
 done
 
+echo ""
+echo "=== Waiting for Store cluster to be ready ==="
+STORE_READY=true
+for i in $(seq 0 $((STORE_COUNT - 1))); do
+    REST_PORT=$((STORE_BASE_REST + i))
+    if ! wait_for_http "http://127.0.0.1:${REST_PORT}/actuator/health" $STORE_WAIT_RETRIES; then
+        echo "ERROR: Store node ${i} on port ${REST_PORT} is not ready"
+        STORE_READY=false
+    fi
+done
+if [ "$STORE_READY" = "false" ]; then
+    echo "ERROR: Store cluster is not ready, aborting"
+    for i in $(seq 0 $((STORE_COUNT - 1))); do
+        INSTANCE_DIR="${STORE_DIR}_${i}"
+        if [ -d "$INSTANCE_DIR" ]; then
+            echo "--- Store node ${i} log ---"
+            tail -30 "$INSTANCE_DIR/logs/hugegraph-store.log" 2>/dev/null || true
+        fi
+    done
+    exit 1
+fi
+
+echo ""
 echo "=== Starting ${SERVER_COUNT} Server nodes ==="
 for i in $(seq 0 $((SERVER_COUNT - 1))); do
     REST_PORT=$((SERVER_BASE_REST + i))
     RPC_PORT=$((SERVER_BASE_RPC + i))
 
     INSTANCE_DIR="${SERVER_DIR}_${i}"
+    rm -rf "$INSTANCE_DIR"
     cp -r "$SERVER_DIR" "$INSTANCE_DIR"
 
     CONF="${INSTANCE_DIR}/conf/graphs/hugegraph.properties"
@@ -173,11 +321,36 @@ for i in $(seq 0 $((SERVER_COUNT - 1))); do
     fi
 
     echo "Starting Server node ${i}: rest=${REST_PORT}, rpc=${RPC_PORT}, role=${ROLE}"
-    pushd "$INSTANCE_DIR"
-    echo -e "pa" | bash bin/init-store.sh
-    bash bin/start-hugegraph.sh -j "-Xms256m -Xmx512m" -t 120 || (cat logs/hugegraph-server.log 2>/dev/null; exit 1)
-    popd
-    sleep 5
+    pushd "$INSTANCE_DIR" > /dev/null
+    export JAVA_OPTIONS="$SERVER_JAVA_OPTIONS"
+    printf 'pa\n' | bash bin/init-store.sh 2>/dev/null || true
+    start_with_retry "Server node ${i}" "bash bin/start-hugegraph.sh -t 240" "logs/hugegraph-server.log" || exit 1
+    popd > /dev/null
+    unset JAVA_OPTIONS
 done
 
+echo ""
+echo "=== Waiting for Server cluster to be ready ==="
+SERVER_READY=true
+for i in $(seq 0 $((SERVER_COUNT - 1))); do
+    REST_PORT=$((SERVER_BASE_REST + i))
+    if ! wait_for_http "http://127.0.0.1:${REST_PORT}/graphs" $SERVER_WAIT_RETRIES; then
+        echo "ERROR: Server node ${i} on port ${REST_PORT} is not ready"
+        SERVER_READY=false
+    fi
+done
+if [ "$SERVER_READY" = "false" ]; then
+    echo "ERROR: Server cluster is not ready, aborting"
+    for i in $(seq 0 $((SERVER_COUNT - 1))); do
+        INSTANCE_DIR="${SERVER_DIR}_${i}"
+        if [ -d "$INSTANCE_DIR" ]; then
+            echo "--- Server node ${i} log ---"
+            tail -30 "$INSTANCE_DIR/logs/hugegraph-server.log" 2>/dev/null || true
+        fi
+    done
+    exit 1
+fi
+
+echo ""
 echo "=== Cluster started: ${PD_COUNT} PD + ${STORE_COUNT} Store + ${SERVER_COUNT} Server ==="
+show_memory

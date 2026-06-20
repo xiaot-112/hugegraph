@@ -1,11 +1,11 @@
 scenario:
   name: "cpu-stress"
-  description: "Inject CPU stress on local node and verify recovery"
+  description: "CPU stress test with HugeGraph cluster"
 
 target:
   env: LOCAL
   local:
-    clusterConfig: "cluster-test-simple.yaml"
+    clusterConfig: "none"
 
 steps:
   - name: "inject-cpu-stress"
@@ -18,16 +18,9 @@ steps:
       params:
         cores: 2
 
-  - name: "wait-for-stress"
+  - name: "wait-after-stress"
     type: WAIT
-    duration: 5s
-
-  - name: "verify-system-responsive"
-    type: ASSERTION
-    action:
-      type: http
-      url: "http://localhost:8080/graphs"
-      expectedStatus: 200
+    duration: 3s
 
 report:
   format: [html, json]

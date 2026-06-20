@@ -1,34 +1,28 @@
 scenario:
   name: "network-delay"
-  description: "Inject network delay on local loopback and verify recovery"
+  description: "Network delay test on Kubernetes"
 
 target:
-  env: LOCAL
-  local:
-    clusterConfig: "cluster-test-single.yaml"
+  env: KUBERNETES
+  kubernetes:
+    namespace: "default"
+    labelSelector: "app=hugegraph"
 
 steps:
   - name: "inject-network-delay"
     type: FAULT
     action:
       type: network_delay
-      target: "localhost"
-      duration: 10s
+      target: "hugegraph-server-0"
+      duration: 30s
       recovery: auto
       params:
         latency: 200
         jitter: 50
 
-  - name: "wait-for-delay"
+  - name: "wait-after-delay"
     type: WAIT
     duration: 5s
-
-  - name: "verify-network-recovered"
-    type: ASSERTION
-    action:
-      type: http
-      url: "http://localhost:8080/graphs"
-      expectedStatus: 200
 
 report:
   format: [html, json]

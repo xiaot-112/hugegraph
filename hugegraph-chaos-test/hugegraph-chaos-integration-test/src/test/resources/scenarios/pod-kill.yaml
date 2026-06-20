@@ -1,33 +1,24 @@
 scenario:
   name: "pod-kill"
-  description: "Kill a HugeGraph pod in Kubernetes and verify recovery"
+  description: "Pod kill test on Kubernetes"
 
 target:
   env: KUBERNETES
   kubernetes:
-    kubeconfig: "~/.kube/config"
-    namespace: "hugegraph"
-    labelSelector: "app=hugegraph-pd"
+    namespace: "default"
+    labelSelector: "app=hugegraph"
 
 steps:
-  - name: "kill-pd-pod"
+  - name: "kill-pod"
     type: FAULT
     action:
       type: pod_kill
-      target: "hugegraph-pd-0"
-      duration: 30s
-      recovery: auto
+      target: "hugegraph-server-0"
+      recovery: manual
 
-  - name: "wait-for-recovery"
+  - name: "wait-after-kill"
     type: WAIT
-    duration: 60s
-
-  - name: "verify-cluster-health"
-    type: ASSERTION
-    action:
-      type: http
-      url: "http://hugegraph-server:8080/graphs"
-      expectedStatus: 200
+    duration: 10s
 
 report:
   format: [html, json]

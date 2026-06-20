@@ -21,17 +21,19 @@ HOME_DIR=$(pwd)
 
 PROPERTIES_FILE="$HOME_DIR/hugegraph-commons/hugegraph-common/src/main/resources/version.properties"
 if [ -f "$PROPERTIES_FILE" ]; then
-    set -a
-    source "$PROPERTIES_FILE"
-    set +a
+    VERSION=$(grep "^VersionInBash=" "$PROPERTIES_FILE" | cut -d'=' -f2)
+    if [ -z "$VERSION" ]; then
+        echo "Error: VersionInBash not found in $PROPERTIES_FILE"
+        exit 1
+    fi
 else
     echo "Error: properties file not found at $PROPERTIES_FILE"
     exit 1
 fi
 
-PD_DIR="$HOME_DIR/hugegraph-pd/apache-hugegraph-pd-$VersionInBash"
-STORE_DIR="$HOME_DIR/hugegraph-store/apache-hugegraph-store-$VersionInBash"
-SERVER_DIR="$HOME_DIR/hugegraph-server/apache-hugegraph-server-$VersionInBash"
+PD_DIR="$HOME_DIR/hugegraph-pd/apache-hugegraph-pd-$VERSION"
+STORE_DIR="$HOME_DIR/hugegraph-store/apache-hugegraph-store-$VERSION"
+SERVER_DIR="$HOME_DIR/hugegraph-server/apache-hugegraph-server-$VERSION"
 
 echo "=== Stopping Server nodes ==="
 for d in ${SERVER_DIR}_*; do
